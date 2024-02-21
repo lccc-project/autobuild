@@ -2,6 +2,7 @@ use std::env::Args;
 use std::io;
 
 mod config;
+mod fs;
 mod hash;
 mod helpers;
 mod os;
@@ -34,6 +35,20 @@ fn real_main(prg_name: &str, mut args: Args) -> io::Result<()> {
         .next()
         .ok_or_else(|| ())
         .or_else(|_| tools::help_subcommands())?;
+
+    match &*subcommand {
+        "--help" => {
+            println!("Usage: {} <subcommand> [SUBCOMMAND ARGS...]", prg_name);
+            println!("Complex build system intended for use with lccc");
+            tools::print_subcommands();
+            return Ok(());
+        }
+        "--version" => {
+            tools::print_version();
+            return Ok(());
+        }
+        _ => {}
+    }
 
     let subcommand_entry = tools::find_tool(&subcommand)?;
 

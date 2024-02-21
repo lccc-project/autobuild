@@ -15,13 +15,18 @@ macro_rules! def_tools{
             }
         }
 
-        pub fn print_help(prg_name: &str, tool_name: &str, help_cb: fn()){
-            println!("Usage: {} <subcommand>",prg_name);
+        pub fn print_subcommands(){
             println!("Available Subcommands:");
             $(println!("\t{}", ::core::stringify!($tool));)*
+        }
 
-            println!("{} {} Usage:", prg_name, tool_name);
-            help_cb()
+        pub fn print_help(prg_name: &str, tool_name: &str, help_cb: fn()){
+            println!("Usage: {} <subcommand>",prg_name);
+            print_subcommands();
+
+
+            print!("{} {} Usage:", prg_name, tool_name);
+            help_cb();
         }
 
         pub fn help_subcommands<T>() -> io::Result<T>{
@@ -41,6 +46,8 @@ macro_rules! def_tools{
 def_tools! {
     tool config alias configure;
     tool rustc;
+    tool clean;
+    tool which;
 }
 
 pub fn print_version() {

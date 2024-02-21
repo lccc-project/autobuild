@@ -148,13 +148,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
         }
     };
 
-    let cfg_file = {
-        let mut buf = cfg_dir.clone();
-        buf.push(".config.toml");
-        buf
-    };
-
-    let mut config = match Config::open(&cfg_file) {
+    let mut config = match Config::open(cfg_dir.clone()) {
         Ok(mut config) => {
             if install_dirs_dirty {
                 let data = config.data_mut();
@@ -233,7 +227,10 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 host,
                 target,
             };
-            Config::new(Box::new(ConfigData::new(src_dir, dirs, targets, &mut rand)))
+            Config::new(
+                cfg_dir.clone(),
+                Box::new(ConfigData::new(src_dir, dirs, targets, &mut rand)),
+            )
         }
     };
 
@@ -245,5 +242,5 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
 
     config.read_manifest(None)?;
 
-    config.write(&cfg_file)
+    config.cleanup()
 }

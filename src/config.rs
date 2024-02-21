@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::env::VarError;
+use std::ffi::OsStr;
 use std::fs::File;
+use std::path::Path;
 use std::{collections::HashMap, convert::TryFrom, ffi::OsString, path::PathBuf, str::FromStr};
 
 use io::Read as _;
@@ -113,10 +115,10 @@ mod serde_target {
                 formatter.write_str("Expected a target in the form <arch>-<sys> or <arch>-<vendor>-<sys> with sys being one of <os>, <env>, <objfmt> or <os> followed by either <env> or <objfmt>")
             }
         }
-        let ty = <&str>::deserialize(de)?;
+        let ty = String::deserialize(de)?;
 
         ty.parse().map_err(|e| {
-            <D::Error as de::Error>::invalid_value(de::Unexpected::Str(ty), &ExpectedTarget)
+            <D::Error as de::Error>::invalid_value(de::Unexpected::Str(&ty), &ExpectedTarget)
         })
     }
 }
@@ -144,6 +146,13 @@ pub enum ConfigProgramInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Artifact {
+    pub path: PathBuf,
+    pub deps: Vec<PathBuf>,
+    pub target: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConfigData {
     pub src_dir: PathBuf,
     pub dirs: ConfigInstallDirs,
@@ -153,6 +162,7 @@ pub struct ConfigData {
     pub file_cache: HashMap<String, FileHash>,
     pub config_vars: HashMap<String, ConfigVarValue>,
     pub global_key: FileHash,
+    pub artifacts: Vec<Artifact>,
 }
 
 impl ConfigData {
@@ -171,6 +181,7 @@ impl ConfigData {
             file_cache: HashMap::new(),
             config_vars: HashMap::new(),
             global_key: FileHash::generate_key(rand),
+            artifacts: Vec::new(),
         }
     }
 }
@@ -246,20 +257,32 @@ pub struct Config {
     data: Box<ConfigData>,
     manifests: HashMap<PathBuf, Manifest>,
     updated: HashSet<String>,
+    cfg_dir: PathBuf,
     dirty: bool,
+    rand: Rand,
+    temp_dir: Option<PathBuf>,
 }
 
 impl Config {
-    pub fn new(data: Box<ConfigData>) -> Self {
+    pub fn new(cfg_dir: PathBuf, data: Box<ConfigData>) -> Self {
         Self {
             data,
             manifests: HashMap::new(),
             updated: HashSet::new(),
             dirty: true,
+            cfg_dir,
+            rand: Rand::init(),
+            temp_dir: None,
         }
     }
 
-    pub fn open<P: AsRef<std::path::Path>>(cfg_path: P) -> io::Result<Self> {
+    pub fn config_dir(&self) -> &Path {
+        &self.cfg_dir
+    }
+
+    pub fn open(cfg_dir: PathBuf) -> io::Result<Self> {
+        let mut cfg_path = cfg_dir.clone();
+        cfg_path.push(".config.toml");
         let mut file = File::open(cfg_path)?;
         let mut st = String::new();
         file.read_to_string(&mut st)?;
@@ -273,18 +296,50 @@ impl Config {
             manifests: HashMap::new(),
             updated: HashSet::new(),
             dirty: false,
+            cfg_dir,
+            rand: Rand::init(),
+            temp_dir: None,
         })
     }
 
-    pub fn write<P: AsRef<std::path::Path>>(&self, cfg_path: P) -> io::Result<()> {
+    pub fn cleanup(&self) -> io::Result<()> {
         use io::Write;
+
         if self.dirty {
+            let mut cfg_path = self.cfg_dir.clone();
+            cfg_path.push(".config.toml");
             let string = toml::to_string(self.data()).unwrap();
             let mut file = File::create(cfg_path)?;
-            file.write_all(string.as_bytes())
-        } else {
-            Ok(())
+            file.write_all(string.as_bytes())?;
         }
+        if let Some(temp_dir) = &self.temp_dir {
+            std::fs::remove_dir_all(temp_dir)?;
+        }
+        Ok(())
+    }
+
+    pub fn temp_file<S: AsRef<OsStr> + ?Sized>(&mut self, suffix: &S) -> io::Result<PathBuf> {
+        let tempdir = match &mut self.temp_dir {
+            Some(dir) => &*dir,
+            block @ None => {
+                let mut tempdir = self.cfg_dir.clone();
+                tempdir.push(".temp");
+                std::fs::create_dir_all(&tempdir)?;
+                *block = Some(tempdir);
+
+                block.as_ref().unwrap()
+            }
+        };
+
+        let mut tempfile = tempdir.clone();
+
+        let key = self.rand.gen();
+        tempfile.push(format!("tmp{:016X}", key));
+        tempfile.set_extension(suffix);
+
+        std::fs::write(&tempfile, [])?;
+
+        Ok(tempfile)
     }
 
     pub fn data(&self) -> &ConfigData {
@@ -395,7 +450,7 @@ impl Config {
 
             let info = match prg_spec.ty {
                 Some(ProgramType::Rustc) => {
-                    Some(ConfigProgramInfo::Rustc(rustc::info(&path, target)?))
+                    Some(ConfigProgramInfo::Rustc(rustc::info(self, &path, target)?))
                 }
                 None => None,
             };
