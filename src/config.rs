@@ -154,6 +154,7 @@ pub struct Artifact {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConfigData {
+    pub serial: FileHash,
     pub src_dir: PathBuf,
     pub dirs: ConfigInstallDirs,
     pub env: HashMap<String, String>,
@@ -173,6 +174,7 @@ impl ConfigData {
         rand: &mut Rand,
     ) -> Self {
         Self {
+            serial: FileHash::ZERO,
             src_dir,
             dirs,
             env: HashMap::new(),
@@ -302,10 +304,11 @@ impl Config {
         })
     }
 
-    pub fn cleanup(&self) -> io::Result<()> {
+    pub fn cleanup(mut self) -> io::Result<()> {
         use io::Write;
 
         if self.dirty {
+            self.data.serial = FileHash::generate_key(&mut self.rand);
             let mut cfg_path = self.cfg_dir.clone();
             cfg_path.push(".config.toml");
             let string = toml::to_string(self.data()).unwrap();
@@ -468,7 +471,7 @@ impl Config {
 
     pub fn read_manifest(&mut self, src_dir: Option<PathBuf>) -> io::Result<()> {
         if let Some(src_dir) = src_dir {
-            if let Some(manifest) = self.manifests.get(&src_dir) {
+            if self.manifests.contains_key(&src_dir) {
                 return Ok(());
             }
 
@@ -483,12 +486,13 @@ impl Config {
 
             reader.read_to_string(&mut st)?;
 
+            let manifest = toml::from_str::<Manifest>(&st)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
             if !self.check_up_to_date_with_hash(
                 manifest_file.into_os_string().into_string().unwrap(),
                 reader.finish(),
             ) {
-                let manifest = toml::from_str::<Manifest>(&st)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
                 println!("Configuring in {}", src_dir.display());
                 eprintln!("{:#?}", manifest);
 
@@ -508,6 +512,10 @@ impl Config {
                     self.find_program(key, prg)?;
                 }
             }
+
+            for (name, spec) in &manifest.target.targets {}
+
+            self.manifests.insert(src_dir, manifest);
 
             Ok(())
         } else {
