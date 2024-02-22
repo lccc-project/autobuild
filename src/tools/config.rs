@@ -194,7 +194,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                         format!("Target `{}` is not recognized or cannot be parsed", alias),
                     )
                 })?,
-                None => target_tuples::from_env!("TARGET"),
+                None => crate::targ::guess::ident_target(),
             };
 
             let host = match host_alias.as_ref() {

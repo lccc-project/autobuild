@@ -48,6 +48,7 @@ def_tools! {
     tool rustc;
     tool clean;
     tool which;
+    tool guess;
 }
 
 pub fn print_version() {

@@ -494,7 +494,6 @@ impl Config {
                 reader.finish(),
             ) {
                 println!("Configuring in {}", src_dir.display());
-                eprintln!("{:#?}", manifest);
 
                 for var in &manifest.env {
                     if !self.data().config_vars.contains_key(var) {

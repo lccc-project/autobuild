@@ -8,6 +8,7 @@ mod helpers;
 mod os;
 mod programs;
 mod rand;
+mod targ;
 mod tools;
 
 fn main() {
