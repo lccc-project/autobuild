@@ -8,6 +8,7 @@ use std::{collections::HashMap, convert::TryFrom, ffi::OsString, path::PathBuf, 
 use io::Read as _;
 
 use install_dirs::dirs::InstallDirs;
+use serde::de::Visitor;
 use serde_derive::{Deserialize, Serialize};
 
 use target_tuples::{Target, UnknownError};
@@ -145,11 +146,105 @@ pub enum ConfigProgramInfo {
     Rustc(rustc::RustcVersion),
 }
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct TargetNameFromStrError;
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct TargetName {
+    pub base_path: PathBuf,
+    pub name: String,
+}
+
+impl core::fmt::Display for TargetName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.base_path.display().fmt(f)?;
+        f.write_str(":")?;
+        f.write_str(&self.name)
+    }
+}
+
+impl core::str::FromStr for TargetName {
+    type Err = TargetNameFromStrError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((l, r)) = s.split_once(":") {
+            Ok(Self {
+                base_path: PathBuf::from(l),
+                name: r.to_string(),
+            })
+        } else {
+            Err(TargetNameFromStrError)
+        }
+    }
+}
+
+impl serde::ser::Serialize for TargetName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let st = self.to_string();
+
+        serializer.serialize_str(&st)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for TargetName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct TargetNameVisitor;
+        impl<'de> Visitor<'de> for TargetNameVisitor {
+            type Value = TargetName;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string of the form path:target")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                v.parse()
+                    .map_err(|e| E::invalid_value(serde::de::Unexpected::Str(v), &self))
+            }
+        }
+
+        deserializer.deserialize_str(TargetNameVisitor)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Artifact {
     pub path: PathBuf,
     pub deps: Vec<PathBuf>,
     pub target: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SubdirInfo {}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BuildInfo {}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "kebab-case")]
+pub enum BuildTargetStep {
+    Empty,
+    Subdir(SubdirInfo),
+    Build(BuildInfo),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BuildTargetInfo {
+    pub deps: Vec<TargetName>,
+    #[serde(flatten)]
+    pub step: BuildTargetStep,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SubdirCache {
+    #[serde(flatten)]
+    vars: HashMap<String, ConfigVarValue>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -164,6 +259,10 @@ pub struct ConfigData {
     pub config_vars: HashMap<String, ConfigVarValue>,
     pub global_key: FileHash,
     pub artifacts: Vec<Artifact>,
+    #[serde(default)]
+    pub build_database: HashMap<TargetName, BuildTargetInfo>,
+    #[serde(default)]
+    pub cache_vars: HashMap<PathBuf, SubdirCache>,
 }
 
 impl ConfigData {
@@ -184,6 +283,8 @@ impl ConfigData {
             config_vars: HashMap::new(),
             global_key: FileHash::generate_key(rand),
             artifacts: Vec::new(),
+            build_database: HashMap::new(),
+            cache_vars: HashMap::new(),
         }
     }
 }
@@ -211,6 +312,7 @@ pub enum ProgramType {
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct BuildTargets {
+    #[serde(default)]
     pub groups: HashMap<String, GroupSpec>,
     #[serde(flatten)]
     pub targets: HashMap<String, TargetSpec>,
@@ -222,6 +324,8 @@ pub struct GroupSpec {}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 
 pub struct TargetSpec {
+    #[serde(default)]
+    optional: bool,
     #[serde(default)]
     deps: Vec<String>,
     #[serde(flatten)]
@@ -263,6 +367,7 @@ pub struct Config {
     dirty: bool,
     rand: Rand,
     temp_dir: Option<PathBuf>,
+    transient_vars: HashMap<PathBuf, SubdirCache>,
 }
 
 impl Config {
@@ -275,6 +380,7 @@ impl Config {
             cfg_dir,
             rand: Rand::init(),
             temp_dir: None,
+            transient_vars: HashMap::new(),
         }
     }
 
@@ -301,6 +407,7 @@ impl Config {
             cfg_dir,
             rand: Rand::init(),
             temp_dir: None,
+            transient_vars: HashMap::new(),
         })
     }
 
@@ -478,7 +585,9 @@ impl Config {
             let mut manifest_file = src_dir.clone();
             manifest_file.push("autobuild.toml");
 
-            let file = File::open(&manifest_file)?;
+            let file = File::open(&manifest_file).map_err(|e| {
+                io::Error::new(e.kind(), format!("{}: {}", manifest_file.display(), e))
+            })?;
 
             let mut reader = hash::HashingReader::new(Sha64State::SHA512_256, file);
 
@@ -489,10 +598,12 @@ impl Config {
             let manifest = toml::from_str::<Manifest>(&st)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-            if !self.check_up_to_date_with_hash(
+            let src_file_dirty = !self.check_up_to_date_with_hash(
                 manifest_file.into_os_string().into_string().unwrap(),
                 reader.finish(),
-            ) {
+            );
+
+            if src_file_dirty {
                 println!("Configuring in {}", src_dir.display());
 
                 for var in &manifest.env {
@@ -512,7 +623,50 @@ impl Config {
                 }
             }
 
-            for (name, spec) in &manifest.target.targets {}
+            let rel_path = src_dir.strip_prefix(&self.data().src_dir).map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "Current src_dir ({}) is outside of the src_dir base",
+                        src_dir.display()
+                    ),
+                )
+            })?;
+
+            for (name, spec) in &manifest.target.targets {
+                let target_name = TargetName {
+                    base_path: rel_path.to_path_buf(),
+                    name: name.clone(),
+                };
+                let step = match &spec.step {
+                    StepSpec::Subdir(subdir) => {
+                        let mut subdir_path = src_dir.clone();
+                        subdir_path.push(&subdir.subdir);
+                        self.read_manifest(Some(subdir_path))?;
+                        BuildTargetStep::Subdir(SubdirInfo {})
+                    }
+                    StepSpec::Build(build) => BuildTargetStep::Build(BuildInfo {}),
+                };
+                if src_file_dirty {
+                    let deps = spec
+                        .deps
+                        .iter()
+                        .map(|name| {
+                            if name.contains(':') {
+                                TargetName::from_str(name).unwrap()
+                            } else {
+                                TargetName {
+                                    base_path: rel_path.to_path_buf(),
+                                    name: name.clone(),
+                                }
+                            }
+                        })
+                        .collect();
+                    self.data_mut()
+                        .build_database
+                        .insert(target_name, BuildTargetInfo { deps, step });
+                }
+            }
 
             self.manifests.insert(src_dir, manifest);
 
