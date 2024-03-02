@@ -52,12 +52,16 @@ pub fn uname() -> io::Result<Uname> {
         windows => ({
             let kernel = std::process::Command::new("uname").arg("-s").output();
 
-            let kernel = match kernel{
+            let kernel = match kernel {
                 Ok(kernel) => kernel,
                 Err(_) => {
-                    return Ok(Uname{kernel: format!("Windows NT"), arch: std::env::var("PROCESSOR_ARCHITECTURE").map_err(|e| io::Error::new(io::ErrorKind::NotFound, e)), sys: None})
+                    return Ok(Uname{
+                        kernel: format!("Windows NT"),
+                        arch: std::env::var("PROCESSOR_ARCHITECTURE").map_err(|e| io::Error::new(io::ErrorKind::NotFound, e))?,
+                        sys: None
+                    });
                 }
-            }
+            };
 
             let arch = std::process::Command::new("uname").arg("-m").output()?;
             let sys = std::process::Command::new("uname").arg("-o").output()?;
@@ -96,7 +100,7 @@ pub fn uname() -> io::Result<Uname> {
             };
 
             Ok(Uname { kernel, arch, sys })
-        })
+        }),
         _ => panic!("We don't know how to determine target system name. This is a bug if lccc has host support on this target")
     }
 }
