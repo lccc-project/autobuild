@@ -7,10 +7,39 @@ impl Rand {
     pub fn init() -> Self {
         let mut keys;
 
-        #[cfg(unix)]
-        unsafe {
-            keys = [0, 0];
-            libc::getrandom(keys.as_mut_ptr().cast(), 16, libc::GRND_RANDOM);
+        cfg_match::cfg_match! {
+            unix => ({
+                unsafe {
+                    keys = [0, 0];
+                    libc::getrandom(keys.as_mut_ptr().cast(), 16, libc::GRND_RANDOM);
+                }
+            }),
+            windows => ({
+                unsafe {
+                    keys = [0, 0];
+
+                    let mut handle = std::mem::zeroed();
+                    let status = windows_sys::Win32::Security::Cryptography::BCryptOpenAlgorithmProvider(
+                        &mut handle,
+                        windows_sys::Win32::Security::Cryptography::BCRYPT_AES_ALGORITHM,
+                        std::ptr::null(),
+                        0,
+                    );
+                    assert_eq!(status, windows_sys::Win32::Foundation::STATUS_SUCCESS);
+
+                    windows_sys::Win32::Security::Cryptography::BCryptGenRandom(
+                        handle,
+                        keys.as_mut_ptr().cast(),
+                        16,
+                        0
+                    );
+                    windows_sys::Win32::Security::Cryptography::BCryptCloseAlgorithmProvider(
+                        handle,
+                        0
+                    );
+                }
+            }),
+            _ => compile_error!("unsupported platform due to inability to generate random number")
         }
 
         let [k0, k1] = keys;
