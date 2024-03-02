@@ -707,7 +707,7 @@ impl Config {
                 let mut group_members = vec![];
 
                 for member in &group.members {
-                    let member_target_name = format!("{}.{}", name, target_name);
+                    let member_target_name = format!("{}.{}", name, member);
 
                     let target_name = TargetName {
                         base_path: rel_path.to_path_buf(),
