@@ -319,7 +319,16 @@ pub struct BuildTargets {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct GroupSpec {}
+pub struct GroupSpec {
+    #[serde(default)]
+    optional: bool,
+    #[serde(default)]
+    deps: Vec<String>,
+    members: Vec<String>,
+    #[serde(default)]
+    #[serde(rename = "path-spec")]
+    path_spec: Option<FormatString>,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 
@@ -576,6 +585,27 @@ impl Config {
         Ok(())
     }
 
+    pub fn get_cache_var(&self, path: &Path, key: &str) -> ConfigVarValue {
+        if let Some(val) = self.data().config_vars.get(key) {
+            val.clone()
+        } else if let Some(val) = self
+            .transient_vars
+            .get(path)
+            .and_then(|subdir| subdir.vars.get(key))
+        {
+            val.clone()
+        } else if let Some(val) = self
+            .data()
+            .cache_vars
+            .get(path)
+            .and_then(|subdir| subdir.vars.get(key))
+        {
+            val.clone()
+        } else {
+            ConfigVarValue::Unset
+        }
+    }
+
     pub fn read_manifest(&mut self, src_dir: Option<PathBuf>) -> io::Result<()> {
         if let Some(src_dir) = src_dir {
             if self.manifests.contains_key(&src_dir) {
@@ -665,6 +695,71 @@ impl Config {
                     self.data_mut()
                         .build_database
                         .insert(target_name, BuildTargetInfo { deps, step });
+                }
+            }
+
+            for (name, group) in &manifest.target.groups {
+                let target_name = TargetName {
+                    base_path: rel_path.to_path_buf(),
+                    name: name.clone(),
+                };
+
+                let mut group_members = vec![];
+
+                for member in &group.members {
+                    let member_target_name = format!("{}.{}", name, target_name);
+
+                    let target_name = TargetName {
+                        base_path: rel_path.to_path_buf(),
+                        name: member_target_name,
+                    };
+
+                    let keys = HashMap::<&'static str, &'static str>::new();
+
+                    let subdir = if let Some(spec) = &group.path_spec {
+                        let mut st = String::new();
+                        spec.eval(member, &keys, &mut st)?;
+                        PathBuf::from(st)
+                    } else {
+                        PathBuf::from(member)
+                    };
+
+                    let mut subdir_path = src_dir.clone();
+                    subdir_path.push(subdir);
+                    self.read_manifest(Some(subdir_path))?;
+                    let step = BuildTargetStep::Subdir(SubdirInfo {});
+
+                    if src_file_dirty {
+                        let deps = group
+                            .deps
+                            .iter()
+                            .map(|name| {
+                                if name.contains(':') {
+                                    TargetName::from_str(name).unwrap()
+                                } else {
+                                    TargetName {
+                                        base_path: rel_path.to_path_buf(),
+                                        name: name.clone(),
+                                    }
+                                }
+                            })
+                            .collect();
+                        self.data_mut()
+                            .build_database
+                            .insert(target_name.clone(), BuildTargetInfo { deps, step });
+                    }
+
+                    group_members.push(target_name);
+                }
+
+                if src_file_dirty {
+                    self.data_mut().build_database.insert(
+                        target_name,
+                        BuildTargetInfo {
+                            deps: group_members,
+                            step: BuildTargetStep::Empty,
+                        },
+                    );
                 }
             }
 
