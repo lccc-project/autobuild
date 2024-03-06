@@ -1,6 +1,6 @@
 use target_tuples::Target;
 
-mod uname;
+pub mod uname;
 
 macro_rules! maybe_stringify {
     ($tt:literal) => {

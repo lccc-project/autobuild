@@ -1,5 +1,4 @@
 use std::env::Args;
-use std::ffi::OsStr;
 use std::io;
 
 macro_rules! def_tools{
@@ -49,6 +48,7 @@ def_tools! {
     tool clean;
     tool which;
     tool guess;
+    tool uname;
 }
 
 pub fn print_version() {
@@ -61,8 +61,9 @@ pub fn print_version() {
 pub fn require_arg<I: Iterator<Item = String>>(
     flag: Option<&str>,
     args: &mut I,
+    explicit: Option<String>,
 ) -> io::Result<String> {
-    args.next().ok_or_else(|| {
+    explicit.or_else(|| args.next()).ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
             if let Some(flag) = flag {
@@ -74,18 +75,18 @@ pub fn require_arg<I: Iterator<Item = String>>(
     })
 }
 
-pub fn invoke_tool<I: IntoIterator>(tool_name: &str, args: I) -> std::io::Result<String>
-where
-    I::Item: AsRef<OsStr>,
-{
-    let cmd = std::env::current_exe()?;
+// pub fn invoke_tool<I: IntoIterator>(tool_name: &str, args: I) -> std::io::Result<String>
+// where
+//     I::Item: AsRef<OsStr>,
+// {
+//     let cmd = std::env::current_exe()?;
 
-    String::from_utf8(
-        std::process::Command::new(cmd)
-            .arg(tool_name)
-            .args(args)
-            .output()?
-            .stdout,
-    )
-    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-}
+//     String::from_utf8(
+//         std::process::Command::new(cmd)
+//             .arg(tool_name)
+//             .args(args)
+//             .output()?
+//             .stdout,
+//     )
+//     .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+// }

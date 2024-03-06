@@ -3,7 +3,7 @@ use std::env::VarError;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
-use std::{collections::HashMap, convert::TryFrom, ffi::OsString, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use io::Read as _;
 
@@ -11,7 +11,7 @@ use install_dirs::dirs::InstallDirs;
 use serde::de::Visitor;
 use serde_derive::{Deserialize, Serialize};
 
-use target_tuples::{Target, UnknownError};
+use target_tuples::Target;
 
 use crate::hash::sha::Sha64State;
 use crate::hash::{self, FileHash};
@@ -92,10 +92,7 @@ pub struct ConfigInstallDirs {
 }
 
 mod serde_target {
-    use serde::{
-        de::{self, Expected},
-        Deserialize, Deserializer, Serializer,
-    };
+    use serde::{de, Deserialize, Deserializer, Serializer};
     use target_tuples::Target;
 
     pub fn serialize<S>(targ: &Target, ser: S) -> Result<S::Ok, S::Error>
@@ -118,7 +115,7 @@ mod serde_target {
         }
         let ty = String::deserialize(de)?;
 
-        ty.parse().map_err(|e| {
+        ty.parse().map_err(|_| {
             <D::Error as de::Error>::invalid_value(de::Unexpected::Str(&ty), &ExpectedTarget)
         })
     }
@@ -205,7 +202,7 @@ impl<'de> serde::de::Deserialize<'de> for TargetName {
                 E: serde::de::Error,
             {
                 v.parse()
-                    .map_err(|e| E::invalid_value(serde::de::Unexpected::Str(v), &self))
+                    .map_err(|_| E::invalid_value(serde::de::Unexpected::Str(v), &self))
             }
         }
 
@@ -486,23 +483,23 @@ impl Config {
         }
     }
 
-    pub fn check_up_to_date(&mut self, file: String) -> io::Result<bool> {
-        if self.updated.contains(&file) {
-            return Ok(false);
-        }
+    // pub fn check_up_to_date(&mut self, file: String) -> io::Result<bool> {
+    //     if self.updated.contains(&file) {
+    //         return Ok(false);
+    //     }
 
-        let mut buf = self.data().src_dir.clone();
-        buf.push(&file);
+    //     let mut buf = self.data().src_dir.clone();
+    //     buf.push(&file);
 
-        let key = match crate::hash::hash_file(&buf, Sha64State::SHA512_256, self.data().global_key)
-        {
-            Ok(o) => o,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(false),
-            Err(e) => return Err(e),
-        };
+    //     let key = match crate::hash::hash_file(&buf, Sha64State::SHA512_256, self.data().global_key)
+    //     {
+    //         Ok(o) => o,
+    //         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(false),
+    //         Err(e) => return Err(e),
+    //     };
 
-        Ok(self.check_up_to_date_with_hash(file, key))
-    }
+    //     Ok(self.check_up_to_date_with_hash(file, key))
+    // }
 
     pub fn find_program(&mut self, key: &str, prg_spec: &ProgramSpec) -> io::Result<()> {
         if !self.data().programs.contains_key(key) {
@@ -620,6 +617,7 @@ impl Config {
             })?;
 
             let mut reader = hash::HashingReader::new(Sha64State::SHA512_256, file);
+            reader.init(self.data().global_key);
 
             let mut st = String::new();
 
@@ -653,7 +651,7 @@ impl Config {
                 }
             }
 
-            let rel_path = src_dir.strip_prefix(&self.data().src_dir).map_err(|e| {
+            let rel_path = src_dir.strip_prefix(&self.data().src_dir).map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidInput,
                     format!(

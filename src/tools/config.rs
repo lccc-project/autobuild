@@ -37,32 +37,45 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
 
     install_dirs.read_env();
 
-    while let Some(arg) = args.next() {
+    while let Some(mut arg) = args.next() {
+        let mut explicit_arg = arg.split_once_take("=");
         match &*arg {
             "--help" => {
+                if let Some(explicit_arg) = explicit_arg {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("Unrecognized option --help={}", explicit_arg),
+                    ));
+                }
                 super::print_help(prg_name, "config", help);
                 return Ok(());
             }
             "--version" => {
+                if let Some(explicit_arg) = explicit_arg {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("Unrecognized option --version={}", explicit_arg),
+                    ));
+                }
                 super::print_version();
                 return Ok(());
             }
             "--set" => {
-                let mut val = super::require_arg(Some("--set"), &mut args)?;
+                let mut val = super::require_arg(Some("--set"), &mut args, explicit_arg)?;
 
-                if let Some((k, v)) = val.split_once_take("=") {
-                    config_vars.insert(k, ConfigVarValue::Value(v));
+                if let Some(v) = val.split_once_take("=") {
+                    config_vars.insert(val, ConfigVarValue::Value(v));
                 } else {
                     config_vars.insert(val, ConfigVarValue::Set);
                 }
             }
             "--unset" => {
-                let val = super::require_arg(Some("--unset"), &mut args)?;
+                let val = super::require_arg(Some("--unset"), &mut args, explicit_arg)?;
 
                 config_vars.insert(val, ConfigVarValue::Unset);
             }
             "--install" => {
-                let mut val = super::require_arg(Some("--install"), &mut args)?;
+                let val = super::require_arg(Some("--install"), &mut args, explicit_arg)?;
 
                 let (k,v) = val.split_once_owned("=")
                     .map_err(|val| io::Error::new(io::ErrorKind::InvalidInput, format!("--install requires an argument of the form dir=path, but got `{}` instead", val)))?;
@@ -70,48 +83,54 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 extra_install_dirs.insert(k, PathBuf::from(v));
             }
             "--src-dir" => {
-                let val = super::require_arg(Some("--src-dir"), &mut args)?;
+                let val = super::require_arg(Some("--src-dir"), &mut args, explicit_arg)?;
 
                 src_dir = Some(PathBuf::from(val));
             }
 
             "--config-dir" => {
-                let val = super::require_arg(Some("--config-dir"), &mut args)?;
+                let val = super::require_arg(Some("--config-dir"), &mut args, explicit_arg)?;
 
                 cfg_dir = Some(PathBuf::from(val));
             }
 
             "--prefix" => {
-                let val = super::require_arg(Some("--prefix"), &mut args)?;
+                let val = super::require_arg(Some("--prefix"), &mut args, explicit_arg)?;
 
                 install_dirs.prefix = PathBuf::from(val);
 
                 prefix_set = true
             }
             "--build" => {
-                let val = super::require_arg(Some("--build"), &mut args)?;
+                let val = super::require_arg(Some("--build"), &mut args, explicit_arg)?;
 
                 build_alias = Some(val);
             }
 
             "--host" => {
-                let val = super::require_arg(Some("--host"), &mut args)?;
+                let val = super::require_arg(Some("--host"), &mut args, explicit_arg)?;
 
                 host_alias = Some(val);
             }
 
             "--target" => {
-                let val = super::require_arg(Some("--target"), &mut args)?;
+                let val = super::require_arg(Some("--target"), &mut args, explicit_arg)?;
 
                 target_alias = Some(val);
             }
 
             "--" => {
+                if let Some(explicit_arg) = explicit_arg {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("Unrecognized option --={}", explicit_arg),
+                    ));
+                }
                 base_dir = args.next().map(PathBuf::from);
                 break;
             }
             x if x.starts_with("--") => {
-                let val = super::require_arg(Some(x), &mut args)?;
+                let val = super::require_arg(Some(x), &mut args, explicit_arg)?;
 
                 install_dirs.set_from_arg(x, val).map_err(|_| {
                     io::Error::new(

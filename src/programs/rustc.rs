@@ -55,14 +55,14 @@ impl RustEdition {
         }
     }
 
-    pub fn gcc_edition_name(&self) -> &'static str {
-        match self {
-            Self::Rust2015 => "rust2015",
-            Self::Rust2018 => "rust2018",
-            Self::Rust2021 => "rust2021",
-            Self::Rust2024 => "rust2024",
-        }
-    }
+    // pub fn gcc_edition_name(&self) -> &'static str {
+    //     match self {
+    //         Self::Rust2015 => "rust2015",
+    //         Self::Rust2018 => "rust2018",
+    //         Self::Rust2021 => "rust2021",
+    //         Self::Rust2024 => "rust2024",
+    //     }
+    // }
 
     pub fn all() -> RustEditions {
         RustEditions(
@@ -129,7 +129,7 @@ fn test_target_rustc<P: AsRef<OsStr>>(
     };
 
     if cmd.status.success() {
-        let mut file_names = String::from_utf8(cmd.stdout)
+        let file_names = String::from_utf8(cmd.stdout)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let mut file_names = file_names.lines();
@@ -189,7 +189,7 @@ fn test_target_rustc<P: AsRef<OsStr>>(
     }
 }
 
-fn test_rustc_cli<P: AsRef<OsStr>>(rustc: &P, temp_file: &Path) -> io::Result<RustcCli> {
+fn test_rustc_cli<P: AsRef<OsStr>>(_: &P, _: &Path) -> io::Result<RustcCli> {
     // Assume it's rustc for now, figure out a heuristic for gcc later
     Ok(RustcCli::Rustc)
 }

@@ -1,19 +1,21 @@
 use core::borrow::Borrow;
 use core::hash::Hash;
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
 pub trait SplitOnceOwned: Sized {
-    fn split_once_take(&mut self, pat: &str) -> Option<(Self, Self)>;
+    fn split_once_take(&mut self, pat: &str) -> Option<Self>;
     fn split_once_owned(mut self, pat: &str) -> Result<(Self, Self), Self> {
-        self.split_once_take(pat).ok_or(self)
+        match self.split_once_take(pat) {
+            Some(val) => Ok((self, val)),
+            None => Err(self),
+        }
     }
 }
 
 impl SplitOnceOwned for String {
-    fn split_once_take(&mut self, pat: &str) -> Option<(Self, Self)> {
+    fn split_once_take(&mut self, pat: &str) -> Option<Self> {
         if let Some(pos) = self.find(pat) {
             let mut new_str = Vec::new();
 
@@ -23,9 +25,7 @@ impl SplitOnceOwned for String {
 
             self.truncate(pos);
 
-            Some((core::mem::take(self), unsafe {
-                String::from_utf8_unchecked(new_str)
-            }))
+            Some(unsafe { String::from_utf8_unchecked(new_str) })
         } else {
             None
         }
@@ -50,7 +50,7 @@ impl core::fmt::Display for FormatString {
 fn write_str<W: core::fmt::Write>(output: &mut W, str: &str) -> std::io::Result<()> {
     output
         .write_str(str)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, "fmt error"))
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "fmt error"))
 }
 
 impl FormatString {

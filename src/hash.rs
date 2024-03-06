@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    io::{self, Read as _},
-    path::Path,
-};
+use std::io;
 
 use serde::{Deserialize, Serialize};
 
@@ -53,9 +49,9 @@ impl<R, S> HashingReader<R, S> {
         }
     }
 
-    pub fn into_inner(self) -> R {
-        self.inner
-    }
+    // pub fn into_inner(self) -> R {
+    //     self.inner
+    // }
 }
 
 impl<R, S: FileHasher> HashingReader<R, S> {
@@ -87,7 +83,7 @@ impl<R, S: FileHasher> HashingReader<R, S> {
 }
 
 impl<R: io::Read, S: FileHasher> io::Read for HashingReader<R, S> {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let read = self.inner.read(buf)?;
 
         let mut bytes = &buf[..read];
@@ -121,26 +117,26 @@ impl<R: io::Read, S: FileHasher> io::Read for HashingReader<R, S> {
 
 pub mod sha;
 
-pub fn hash_file<S: FileHasher, P: AsRef<Path>>(
-    path: P,
-    hasher: S,
-    key: FileHash,
-) -> io::Result<FileHash> {
-    let mut buf = vec![0; S::BLOCK_SIZE];
-    let file = fs::File::open(path)?;
+// pub fn hash_file<S: FileHasher, P: AsRef<Path>>(
+//     path: P,
+//     hasher: S,
+//     key: FileHash,
+// ) -> io::Result<FileHash> {
+//     let mut buf = vec![0; S::BLOCK_SIZE];
+//     let file = fs::File::open(path)?;
 
-    let mut reader = HashingReader::new(hasher, file);
+//     let mut reader = HashingReader::new(hasher, file);
 
-    reader.init(key);
+//     reader.init(key);
 
-    loop {
-        if reader.read(&mut buf)? == 0 {
-            break;
-        }
-    }
+//     loop {
+//         if reader.read(&mut buf)? == 0 {
+//             break;
+//         }
+//     }
 
-    Ok(reader.finish())
-}
+//     Ok(reader.finish())
+// }
 
 const ALPHA: [u8; 16] = [
     b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'a', b'b', b'c', b'd', b'e', b'f',
@@ -186,8 +182,7 @@ impl<'de> Deserialize<'de> for FileHash {
                     return Err(E::invalid_value(serde::de::Unexpected::Str(v), &self));
                 }
                 let mut bytes = [0u8; 32];
-                let mut arrays = v
-                    .as_bytes()
+                v.as_bytes()
                     .chunks_exact(2)
                     .map(|octet| {
                         let hi = octet[0];

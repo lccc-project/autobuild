@@ -4,6 +4,7 @@ use lccc_siphash::siphash::sys::SipHashState;
 pub struct Rand(SipHashState);
 
 impl Rand {
+    #[allow(unused_parens)] // Removing them changes how the macro is parsed
     pub fn init() -> Self {
         let mut keys;
 

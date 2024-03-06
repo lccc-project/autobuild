@@ -100,7 +100,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 clean_cache = true;
             }
             "--cfg-dir" => {
-                let dir = require_arg(Some("--cfg-dir"), &mut args)?;
+                let dir = require_arg(Some("--cfg-dir"), &mut args, None)?;
                 config_dir = PathBuf::from(dir);
             }
             "--dry-run" => {
@@ -148,32 +148,40 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                     if verbose {
                         println!("Deleting {}", art.path.display());
                     }
-                    match fs::remove_file(&path) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            match fs::metadata(&path) {
-                                Ok(m) if m.is_dir() => {
-                                    dirs.push(path);
-                                    continue;
+                    if remove_files {
+                        match fs::remove_file(&path) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                match fs::metadata(&path) {
+                                    Ok(m) if m.is_dir() => {
+                                        dirs.push(path);
+                                        continue;
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
-                            }
-                            if !ignore_missing_files {
-                                if fail_fast {
-                                    return Err(io::Error::new(
-                                        e.kind(),
-                                        format!("Could not delete {}: {}", art.path.display(), e),
-                                    ));
+                                if !ignore_missing_files {
+                                    if fail_fast {
+                                        return Err(io::Error::new(
+                                            e.kind(),
+                                            format!(
+                                                "Could not delete {}: {}",
+                                                art.path.display(),
+                                                e
+                                            ),
+                                        ));
+                                    }
+                                    res = Err(io::Error::new(io::ErrorKind::Other, "failed"));
+                                    eprintln!("Could not delete {}: {}", art.path.display(), e)
                                 }
-                                res = Err(io::Error::new(io::ErrorKind::Other, "failed"));
-                                eprintln!("Could not delete {}: {}", art.path.display(), e)
                             }
                         }
                     }
                 }
 
                 for dir in dirs {
-                    let _ = fs::remove_dir_all(dir);
+                    if remove_files {
+                        let _ = fs::remove_dir_all(dir);
+                    }
                 }
             }
             Err(e) => {
@@ -194,18 +202,20 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
         if verbose {
             println!("Removing {}", file.display());
         }
-        match fs::remove_file(&file) {
-            Ok(()) => {}
-            Err(e) => {
-                if !ignore_missing_files {
-                    if fail_fast {
-                        return Err(io::Error::new(
-                            e.kind(),
-                            format!("Could not delete {}: {}", file.display(), e),
-                        ));
+        if remove_files {
+            match fs::remove_file(&file) {
+                Ok(()) => {}
+                Err(e) => {
+                    if !ignore_missing_files {
+                        if fail_fast {
+                            return Err(io::Error::new(
+                                e.kind(),
+                                format!("Could not delete {}: {}", file.display(), e),
+                            ));
+                        }
+                        res = Err(io::Error::new(io::ErrorKind::Other, "failed"));
+                        eprintln!("Could not delete {}: {}", file.display(), e)
                     }
-                    res = Err(io::Error::new(io::ErrorKind::Other, "failed"));
-                    eprintln!("Could not delete {}: {}", file.display(), e)
                 }
             }
         }
