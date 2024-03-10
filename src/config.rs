@@ -214,12 +214,13 @@ impl<'de> serde::de::Deserialize<'de> for TargetName {
 pub struct Artifact {
     pub path: PathBuf,
     pub deps: Vec<PathBuf>,
-    pub target: String,
+    pub target: TargetName,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SubdirInfo {}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct BuildInfo {}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -343,6 +344,7 @@ pub struct TargetSpec {
 pub enum StepSpec {
     Subdir(SubdirSpec),
     Build(BuildSpec),
+    Script(BuildScriptSpec),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -350,8 +352,144 @@ pub struct SubdirSpec {
     subdir: PathBuf,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum DefaultBuildType {
+    Rust,
+    RustProcMacro,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum BuildType {
+    Default(DefaultBuildType),
+    Custom(TargetName),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct CustomBuildType {
+    pub base: Option<BuildType>,
+    pub allow_dependants: Option<bool>,
+    pub build_compiler_name: Option<String>,
+    pub compiler_name: Option<String>,
+    pub compile_flags: Option<Vec<String>>,
+    pub link_flags: Option<Vec<String>>,
+    pub preprocess_flags: Option<Vec<String>>,
+    pub deps_step: BuildStepInfo,
+    pub preprocess_step: BuildStepInfo,
+    pub compile_step: BuildStepInfo,
+    pub link_step: BuildStepInfo,
+    pub defaults: BuildInfoDefaults,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct BuildStepInfo {
+    pub add_deps: AddDepsInfo,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct AddDepsInfo {
+    pub all: Vec<LibraryType>,
+    #[serde(flatten)]
+    pub by_type: HashMap<BuildType, Vec<LibraryType>>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct BuildSpec {}
+#[serde(rename_all = "kebab-case")]
+pub enum LibraryType {
+    System,
+    Static,
+    Dynamic,
+    RlibStatic,
+    RlibDynamic,
+    Rlib,
+    RlibProcMacro,
+    DynamicFramework,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum StringOrControl {
+    String(FormatString),
+    Control(bool),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct BuildArtifactInfo {
+    pub prefix: Option<String>,
+    pub suffix: Option<String>,
+    pub artifact_name: Option<FormatString>,
+    pub aliases: Option<Vec<FormatString>>,
+    pub clean: Option<bool>,
+    pub install: Option<StringOrControl>,
+    pub install_link: Option<StringOrControl>,
+    pub install_aliases: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct BuildLibraryInfo {
+    pub library_type: Option<LibraryType>,
+    pub generate_link: Option<bool>,
+    pub soname: Option<StringOrControl>,
+    pub soname_alias: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct BuildBinaryInfo {
+    pub set_local_rpath: Option<bool>,
+    pub run_target: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case", default)]
+pub struct BuildInfoDefaults {
+    pub library: BuildLibraryInfo,
+    pub binary: BuildBinaryInfo,
+    pub artifact: BuildArtifactInfo,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BuildOutput {
+    Library(BuildLibraryInfo),
+    Binary(BuildBinaryInfo),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BuildSpec {
+    pub src: PathBuf,
+    #[serde(default, rename = "type")]
+    pub ty: Option<BuildType>,
+    #[serde(default, flatten)]
+    pub output: Option<BuildOutput>,
+    #[serde(default)]
+    pub artifact: BuildArtifactInfo,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BuildScriptSrc {
+    Build(PathBuf),
+    Configure(PathBuf),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BuildScriptSpec {
+    #[serde(flatten)]
+    pub src: BuildScriptSrc,
+    #[serde(default, rename = "type")]
+    pub ty: Option<BuildType>,
+    #[serde(default)]
+    pub artifact: BuildArtifactInfo,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(default)]
@@ -674,6 +812,7 @@ impl Config {
                         BuildTargetStep::Subdir(SubdirInfo {})
                     }
                     StepSpec::Build(build) => BuildTargetStep::Build(BuildInfo {}),
+                    StepSpec::Script(_) => todo!(),
                 };
                 if src_file_dirty {
                     let deps = spec
