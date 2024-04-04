@@ -7,6 +7,7 @@ mod fs;
 mod hash;
 mod helpers;
 mod jobserv;
+mod map;
 mod os;
 mod programs;
 mod rand;
