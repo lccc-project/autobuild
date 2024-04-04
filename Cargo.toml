@@ -14,9 +14,18 @@ target-tuples = "0.5.12"
 lccc-siphash = "0.1.0"
 cfg-match = "0.2.1"
 with_builtin_macros = "0.0.3"
+hashbrown = { version = "0.14.3", default-features = false, features=["inline-more", "raw"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.152"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52.0", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Cryptography", "Win32_System_SystemInformation", "Win32_System", "Win32", "Win32_System_WindowsProgramming"] }
+windows-sys = { version = "0.52.0", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Cryptography", "Win32_System_SystemInformation", "Win32_System", "Win32", "Win32_System_WindowsProgramming", "Win32_System_Threading"] }
+
+[[bin]]
+name="autobuild"
+path="src/main.rs"
+
+[[bin]]
+name="autobuild-wrap-rustc"
+path="src/bin/autobuild-wrap-rustc.rs"

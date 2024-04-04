@@ -251,3 +251,30 @@ pub fn which<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
         format!("Program {} not found in PATH", prg.as_ref().display()),
     ))
 }
+
+pub fn which_tool<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
+    let path = std::env::var_os("AUTOBUILD_TOOL_PATH");
+
+    let mut autobuild = std::env::current_exe()?;
+    autobuild.pop();
+
+    for mut file in path
+        .as_ref()
+        .into_iter()
+        .flat_map(|s| std::env::split_paths(s))
+        .chain(core::iter::once(autobuild))
+    {
+        file.push(prg);
+        if !std::env::consts::EXE_EXTENSION.is_empty() {
+            file.set_extension(std::env::consts::EXE_EXTENSION);
+        }
+
+        if let Ok(perms) = std::fs::metadata(&file) {
+            if crate::os::is_executable(&perms.permissions()) {
+                return Ok(file);
+            }
+        }
+    }
+
+    which(prg)
+}

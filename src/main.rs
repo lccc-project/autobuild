@@ -2,12 +2,15 @@ use std::env::Args;
 use std::io;
 
 mod config;
+mod consts;
 mod fs;
 mod hash;
 mod helpers;
+mod jobserv;
 mod os;
 mod programs;
 mod rand;
+mod serialize;
 mod targ;
 mod tools;
 

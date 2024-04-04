@@ -19,6 +19,8 @@ use crate::helpers::{which, FormatString};
 use crate::programs::rustc;
 use crate::rand::Rand;
 
+pub mod script;
+
 #[derive(Clone, Debug)]
 pub enum ConfigVarValue {
     Set,
