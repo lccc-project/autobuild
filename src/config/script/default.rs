@@ -1,6 +1,6 @@
 use super::{BuildScriptProvider, BuildScriptTask};
 
-use std::{collections::HashMap, ffi::OsString, path::Path, process::Command};
+use std::{collections::HashMap, ffi::OsString, io, path::Path, process::Command};
 
 pub struct BuildScriptProviderDefault {}
 
@@ -78,5 +78,7 @@ impl<'a> BuildScriptTask for BuildScriptTaskDefault<'a> {
         cmd.envs(&self.env);
         cmd.env("AUTOBUILD", std::env::current_exe().unwrap());
         cmd.env("AUTOBUILD_VERSION", crate::consts::VERSION);
+
+        todo!()
     }
 }
