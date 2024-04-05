@@ -16,10 +16,13 @@ use target_tuples::Target;
 use crate::hash::sha::Sha64State;
 use crate::hash::{self, FileHash};
 use crate::helpers::{which, FormatString};
+use crate::map::OrderedMap;
 use crate::programs::rustc;
 use crate::rand::Rand;
 
 pub mod script;
+
+mod store;
 
 #[derive(Clone, Debug)]
 pub enum ConfigVarValue {
@@ -35,7 +38,7 @@ impl serde::Serialize for ConfigVarValue {
     {
         match self {
             ConfigVarValue::Set => serializer.serialize_bool(true),
-            ConfigVarValue::Unset => serializer.serialize_bool(false),
+            ConfigVarValue::Unset => serializer.serialize_none(),
             ConfigVarValue::Value(v) => serializer.serialize_str(v),
         }
     }
@@ -53,6 +56,27 @@ impl<'de> serde::Deserialize<'de> for ConfigVarValue {
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a string or a boolean")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(ConfigVarValue::Unset)
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(ConfigVarValue::Unset)
+            }
+
+            fn visit_some<D: serde::Deserializer<'de>>(
+                self,
+                deserializer: D,
+            ) -> Result<Self::Value, D::Error> {
+                deserializer.deserialize_any(self)
             }
 
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
@@ -81,7 +105,7 @@ impl<'de> serde::Deserialize<'de> for ConfigVarValue {
             }
         }
 
-        deserializer.deserialize_any(ValueVisitor)
+        deserializer.deserialize_option(ValueVisitor)
     }
 }
 
@@ -90,47 +114,15 @@ pub struct ConfigInstallDirs {
     #[serde(flatten)]
     pub install_dirs: InstallDirs,
     #[serde(flatten)]
-    pub rest: HashMap<String, PathBuf>,
+    pub rest: OrderedMap<String, PathBuf>,
 }
 
-mod serde_target {
-    use serde::{de, Deserialize, Deserializer, Serializer};
-    use target_tuples::Target;
-
-    pub fn serialize<S>(targ: &Target, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        ser.serialize_str(targ.get_name())
-    }
-
-    pub fn deserialize<'de, D>(de: D) -> Result<Target, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ExpectedTarget;
-
-        impl de::Expected for ExpectedTarget {
-            fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Expected a target in the form <arch>-<sys> or <arch>-<vendor>-<sys> with sys being one of <os>, <env>, <objfmt> or <os> followed by either <env> or <objfmt>")
-            }
-        }
-        let ty = String::deserialize(de)?;
-
-        ty.parse().map_err(|_| {
-            <D::Error as de::Error>::invalid_value(de::Unexpected::Str(&ty), &ExpectedTarget)
-        })
-    }
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
 pub struct ConfigTargets {
-    #[serde(with = "serde_target")]
     pub build: Target,
-    #[serde(with = "serde_target")]
     pub host: Target,
-    #[serde(with = "serde_target")]
     pub target: Target,
+    pub others: OrderedMap<String, Target>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

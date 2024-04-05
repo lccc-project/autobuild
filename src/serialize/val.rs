@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
 };
@@ -7,8 +8,6 @@ use serde::{
     de::value::{MapAccessDeserializer, SeqAccessDeserializer},
     Deserialize, Serialize,
 };
-
-use crate::map::OrderedMap;
 
 pub type Table<K, V> = crate::map::OrderedMap<K, V>;
 
@@ -40,7 +39,8 @@ impl Serialize for Value {
     }
 }
 
-pub mod serde_val;
+pub mod de_owned;
+pub mod ser_owned;
 
 impl<'de> Deserialize<'de> for Value {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -140,9 +140,9 @@ impl<'de> Deserialize<'de> for Value {
 
 #[derive(Clone, Debug)]
 pub enum BorrowedVal<'a> {
-    Table(Table<&'a str, BorrowedVal<'a>>),
+    Table(Table<Cow<'a, str>, BorrowedVal<'a>>),
     List(Vec<BorrowedVal<'a>>),
-    String(&'a str),
+    String(Cow<'a, str>),
     Bool(bool),
     Integer(i64),
     Float(f64),
@@ -214,8 +214,23 @@ where
             where
                 E: serde::de::Error,
             {
-                Ok(BorrowedVal::String(v))
+                Ok(BorrowedVal::String(Cow::Borrowed(v)))
             }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BorrowedVal::String(Cow::Owned(v.to_string())))
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BorrowedVal::String(Cow::Owned(v)))
+            }
+
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,

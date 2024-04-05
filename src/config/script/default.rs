@@ -8,7 +8,7 @@ impl BuildScriptProvider for BuildScriptProviderDefault {
     fn new_task<'a>(
         &'a self,
         compile_step: &'a dyn crate::programs::CompileTask,
-        timing: super::BuildScriptTaskTiming,
+        _: super::BuildScriptTaskTiming,
     ) -> Box<dyn super::BuildScriptTask + 'a> {
         let exec = compile_step.run_outputs()[0];
 

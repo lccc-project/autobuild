@@ -1,0 +1,1 @@
+env = ["RUSTC_FOR_BUILD", "RUSTC"]

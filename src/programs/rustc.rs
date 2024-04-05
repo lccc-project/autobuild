@@ -104,7 +104,7 @@ fn test_target_rustc<P: AsRef<OsStr>>(
 
     let rustc_lossy = rustc.to_string_lossy();
     // This logic (likely) is wrong for `rustc`, but who makes x86_64-pc-linux-gnu-rustc be rustc anyways
-    let cmd = if rustc_lossy.contains(&try_target) {
+    let cmd: std::process::Output = if rustc_lossy.contains(&try_target) {
         Command::new(rustc)
             .arg("--crate-name")
             .arg("__")

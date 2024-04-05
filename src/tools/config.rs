@@ -12,6 +12,7 @@ use crate::config::{
     Config, ConfigData, ConfigInstallDirs, ConfigProgramInfo, ConfigTargets, ConfigVarValue,
 };
 use crate::helpers::SplitOnceOwned;
+use crate::map::OrderedMap;
 use crate::rand::Rand;
 
 fn help() {
@@ -23,8 +24,8 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
     let mut base_dir = None;
     let mut src_dir = None;
     let mut cfg_dir = None;
-    let mut config_vars = HashMap::new();
-    let mut extra_install_dirs = HashMap::new();
+    let mut config_vars = OrderedMap::new();
+    let mut extra_install_dirs = OrderedMap::new();
 
     let mut prefix_set = false;
 
@@ -245,6 +246,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 build,
                 host,
                 target,
+                others: OrderedMap::new(),
             };
             Config::new(
                 cfg_dir.clone(),

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+prg_path="$0"
+
+case "$prg_name" in
+    *[/\\]* )
+        whereami="`dirname "$prg_name"`"
+        ;;
+    * )
+        prg_path="`command -p $prg_name`"
+        whereami="`dirname "$prg_path"`"
+    ;;
+esac
+
+echo "$whereami"
