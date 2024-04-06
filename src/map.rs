@@ -2,6 +2,7 @@ use core::borrow::Borrow;
 use core::hash::{BuildHasher, Hash, Hasher};
 use core::iter::{Extend, FromIterator, FusedIterator};
 use std::marker::PhantomData;
+use std::ops::Index;
 
 mod raw;
 
@@ -124,6 +125,13 @@ impl<K: Hash + Eq, V, S: BuildHasher> OrderedMap<K, V, S> {
         inner.reserve(additional, |key| Self::hash_key(hasher, key));
     }
 
+    pub fn contains_key<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+    {
+        self.get(key).is_some()
+    }
+
     pub fn get<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
@@ -199,6 +207,18 @@ impl<K: Hash + Eq, V, S: BuildHasher> OrderedMap<K, V, S> {
     {
         let hash = Self::hash_key(&self.hasher, key);
         self.inner.remove(hash, |k| k.borrow() == key)
+    }
+}
+
+impl<K: Hash + Eq, Q: Hash + Eq + ?Sized, V, S: BuildHasher> Index<&Q> for OrderedMap<K, V, S>
+where
+    K: Borrow<Q>,
+{
+    type Output = V;
+
+    #[track_caller]
+    fn index(&self, key: &Q) -> &V {
+        self.get(key).expect("no such key in table")
     }
 }
 

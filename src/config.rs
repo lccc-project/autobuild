@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 use std::env::VarError;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use io::Read as _;
 
@@ -215,7 +216,11 @@ pub struct SubdirInfo {}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct BuildInfo {}
+pub struct BuildInfo {
+    pub compiler_name: String,
+    pub primary_artifacts: Vec<PathBuf>,
+    pub secondary_artifacts: Vec<PathBuf>,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
@@ -236,7 +241,7 @@ pub struct BuildTargetInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SubdirCache {
     #[serde(flatten)]
-    vars: HashMap<String, ConfigVarValue>,
+    vars: OrderedMap<String, ConfigVarValue>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -244,17 +249,17 @@ pub struct ConfigData {
     pub serial: FileHash,
     pub src_dir: PathBuf,
     pub dirs: ConfigInstallDirs,
-    pub env: HashMap<String, String>,
-    pub programs: HashMap<String, ConfigFoundProgram>,
+    pub env: OrderedMap<String, String>,
+    pub programs: OrderedMap<String, ConfigFoundProgram>,
     pub targets: ConfigTargets,
-    pub file_cache: HashMap<String, FileHash>,
-    pub config_vars: HashMap<String, ConfigVarValue>,
+    pub file_cache: OrderedMap<String, FileHash>,
+    pub config_vars: OrderedMap<String, ConfigVarValue>,
     pub global_key: FileHash,
     pub artifacts: Vec<Artifact>,
     #[serde(default)]
-    pub build_database: HashMap<TargetName, BuildTargetInfo>,
+    pub build_database: OrderedMap<TargetName, BuildTargetInfo>,
     #[serde(default)]
-    pub cache_vars: HashMap<PathBuf, SubdirCache>,
+    pub cache_vars: OrderedMap<PathBuf, SubdirCache>,
 }
 
 impl ConfigData {
@@ -268,15 +273,15 @@ impl ConfigData {
             serial: FileHash::ZERO,
             src_dir,
             dirs,
-            env: HashMap::new(),
-            programs: HashMap::new(),
+            env: OrderedMap::new(),
+            programs: OrderedMap::new(),
             targets,
-            file_cache: HashMap::new(),
-            config_vars: HashMap::new(),
+            file_cache: OrderedMap::new(),
+            config_vars: OrderedMap::new(),
             global_key: FileHash::generate_key(rand),
             artifacts: Vec::new(),
-            build_database: HashMap::new(),
-            cache_vars: HashMap::new(),
+            build_database: OrderedMap::new(),
+            cache_vars: OrderedMap::new(),
         }
     }
 }
@@ -284,7 +289,7 @@ impl ConfigData {
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct ExtraConfigDirs {
     #[serde(flatten)]
-    pub dirs: HashMap<String, FormatString>,
+    pub dirs: OrderedMap<String, FormatString>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -305,9 +310,9 @@ pub enum ProgramType {
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct BuildTargets {
     #[serde(default)]
-    pub groups: HashMap<String, GroupSpec>,
+    pub groups: OrderedMap<String, GroupSpec>,
     #[serde(flatten)]
-    pub targets: HashMap<String, TargetSpec>,
+    pub targets: OrderedMap<String, TargetSpec>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -348,9 +353,20 @@ pub struct SubdirSpec {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum DefaultBuildType {
     Rust,
     RustProcMacro,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BuildTypeInfo<'a> {
+    pub allow_dependants: bool,
+    pub build_compiler_name: Cow<'a, str>,
+    pub compiler_name: Cow<'a, str>,
+    pub compile_flags: Cow<'a, [Cow<'a, str>]>,
+    pub link_flags: Cow<'a, [Cow<'a, str>]>,
+    pub preprocess_flags: Cow<'a, [Cow<'a, str>]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
@@ -388,7 +404,7 @@ pub struct BuildStepInfo {
 pub struct AddDepsInfo {
     pub all: Vec<LibraryType>,
     #[serde(flatten)]
-    pub by_type: HashMap<BuildType, Vec<LibraryType>>,
+    pub by_type: OrderedMap<BuildType, Vec<LibraryType>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -489,7 +505,7 @@ pub struct BuildScriptSpec {
 #[serde(default)]
 pub struct Manifest {
     pub dirs: ExtraConfigDirs,
-    pub programs: HashMap<String, ProgramSpec>,
+    pub programs: OrderedMap<String, ProgramSpec>,
     pub target: BuildTargets,
     pub env: Vec<String>,
 }
@@ -499,26 +515,26 @@ use std::io;
 #[derive(Clone, Debug)]
 pub struct Config {
     data: Box<ConfigData>,
-    manifests: HashMap<PathBuf, Manifest>,
+    manifests: OrderedMap<PathBuf, Manifest>,
     updated: HashSet<String>,
     cfg_dir: PathBuf,
     dirty: bool,
     rand: Rand,
     temp_dir: Option<PathBuf>,
-    transient_vars: HashMap<PathBuf, SubdirCache>,
+    transient_vars: OrderedMap<PathBuf, SubdirCache>,
 }
 
 impl Config {
     pub fn new(cfg_dir: PathBuf, data: Box<ConfigData>) -> Self {
         Self {
             data,
-            manifests: HashMap::new(),
+            manifests: OrderedMap::new(),
             updated: HashSet::new(),
             dirty: true,
             cfg_dir,
             rand: Rand::init(),
             temp_dir: None,
-            transient_vars: HashMap::new(),
+            transient_vars: OrderedMap::new(),
         }
     }
 
@@ -539,13 +555,13 @@ impl Config {
 
         Ok(Self {
             data,
-            manifests: HashMap::new(),
+            manifests: OrderedMap::new(),
             updated: HashSet::new(),
             dirty: false,
             cfg_dir,
             rand: Rand::init(),
             temp_dir: None,
-            transient_vars: HashMap::new(),
+            transient_vars: OrderedMap::new(),
         })
     }
 
@@ -805,7 +821,7 @@ impl Config {
                         self.read_manifest(Some(subdir_path))?;
                         BuildTargetStep::Subdir(SubdirInfo {})
                     }
-                    StepSpec::Build(build) => BuildTargetStep::Build(BuildInfo {}),
+                    StepSpec::Build(build) => todo!(),
                     StepSpec::Script(_) => todo!(),
                 };
                 if src_file_dirty {
