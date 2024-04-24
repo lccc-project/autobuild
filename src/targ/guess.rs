@@ -1,5 +1,7 @@
 use target_tuples::Target;
 
+use crate::log::{dbg, log, log_debug, trace, LogLevel};
+
 pub mod uname;
 
 macro_rules! maybe_stringify {
@@ -14,6 +16,9 @@ macro_rules! maybe_stringify {
 macro_rules! opt_stringify {
     () => {
         ::core::option::Option::None
+    };
+    (*) => {
+        _
     };
     ($tt:tt) => {
         ::core::option::Option::Some(maybe_stringify!($tt))
@@ -48,7 +53,8 @@ with_builtin_macros::with_builtin! {
 }
 
 pub fn ident_target() -> Target {
+    trace!(ident_target);
     let uname = uname::uname().expect("Could not determine the system names for the host target. If the target is supported as a host target by lccc, this is a bug.");
 
-    guess_from_uname(&uname)
+    dbg!(guess_from_uname(&uname))
 }

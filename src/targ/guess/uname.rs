@@ -1,5 +1,7 @@
 use std::io;
 
+use crate::log::{dbg, log, log_debug, trace, LogLevel};
+
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Uname {
     pub kernel: String,
@@ -12,86 +14,53 @@ pub struct Uname {
 
 #[allow(unused_parens)] // cfg_match is a macro that exists
 pub fn uname() -> io::Result<Uname> {
+    trace!(uname);
     cfg_match::cfg_match! {
         unix => ({
-            let kernel = std::process::Command::new("uname").arg("-s").output()?;
-            let arch = std::process::Command::new("uname").arg("-m").output()?;
-            let sys = std::process::Command::new("uname").arg("-o").output()?;
-            let kver = std::process::Command::new("uname").arg("-v").output()?;
-            let krelease = std::process::Command::new("uname").arg("-r").output()?;
-            let hostname = std::process::Command::new("uname").arg("-n").output()?;
+            use std::ffi::CStr;
+            use core::mem::MaybeUninit;
+            log_debug!(LogLevel::Trace, "{{uname}}: unix");
 
-            if !kernel.status.success() {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("Could not determine target system name (executing `uname -s` failed)"),
-                ));
+            let mut name = MaybeUninit::zeroed();
+
+            if unsafe{libc::uname(name.as_mut_ptr())} < 0{
+                return Err(dbg!(io::Error::last_os_error()));
             }
 
-            let kernel = core::str::from_utf8(&kernel.stdout)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim()
-                .to_string();
+            let name = unsafe{name.assume_init()};
 
-            if !arch.status.success() {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("Could not determine target system name (executing `uname -k` failed)"),
-                ));
-            }
-            let arch = core::str::from_utf8(&arch.stdout)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim()
-                .to_string();
 
-            let sys = if sys.status.success() {
-                let sys = core::str::from_utf8(&sys.stdout)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                    .trim()
-                    .to_string();
-                Some(sys)
-            } else {
+            let kernel = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.sysname)).expect("libc::uname should have inserted a NULL");
+            let kernel = kernel.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", kernel))))?.to_string();
+            let hostname = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.nodename)).expect("libc::uname should have inserted a NULL");
+            let hostname = hostname.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", hostname))))?.to_string();
+            let kver = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.version)).expect("libc::uname should have inserted a NULL");
+            let kver = kver.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", kver))))?.to_string();
+            let krelease = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.release)).expect("libc::uname should have inserted a NULL");
+            let krelease = krelease.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", krelease))))?.to_string();
+
+            let arch = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.machine)).expect("libc::uname should have inserted a NULL");
+            let arch = arch.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", arch))))?.to_string();
+
+            log!(LogLevel::Info, "uname -o");
+            let sys = if let Ok(cmd) = std::process::Command::new("uname").arg("-o").output(){
+                if cmd.status.success(){
+                    let st = String::from_utf8(cmd.stdout)
+                        .map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, "expected UTF-8 only in os name")))?;
+
+                    Some(st.trim().to_string())
+                }else{
+                    None
+                }
+            }else{
                 None
             };
 
-            if !kver.status.success() {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("Could not determine target system name (executing `uname -k` failed)"),
-                ));
-            }
-            let kver = core::str::from_utf8(&kver.stdout)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim()
-                .to_string();
-
-            if !krelease.status.success() {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("Could not determine target system name (executing `uname -k` failed)"),
-                ));
-            }
-            let krelease = core::str::from_utf8(&krelease.stdout)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim()
-                .to_string();
-
-            if !hostname.status.success() {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("Could not determine target system name (executing `uname -k` failed)"),
-                ));
-            }
-            let hostname = core::str::from_utf8(&hostname.stdout)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim()
-                .to_string();
-
-
-            Ok(Uname { kernel, arch, sys, kver, krelease, hostname})
+            dbg!(Ok(Uname { kernel, arch, sys, kver, krelease, hostname}))
         }),
         windows => ({
             use windows_sys::Win32::System::{SystemInformation, WindowsProgramming};
+            log_debug!(LogLevel::Trace, "{{uname}}: windows");
 
             let mut hostname = Vec::with_capacity(WindowsProgramming::MAX_COMPUTERNAME_LENGTH);
             let mut n = hostname.capacity() as u32;
@@ -160,14 +129,61 @@ pub fn uname() -> io::Result<Uname> {
                 _ => None
             };
 
-            Ok(Uname{
+            dbg!(Ok(Uname{
                 kernel: format!("Windows NT"),
                 arch: std::env::var("PROCESSOR_ARCHITECTURE").map_err(|e| io::Error::new(io::ErrorKind::NotFound, e))?,
                 sys,
                 krelease,
                 kver,
                 hostname,
-            })
+            }))
+        }),
+        target_os = "lilium" => ({
+            use lilium_sys::info;
+            use lilium_sys::result::Error as LiliumError;
+            log_debug!(LogLevel::Trace, "{{uname}}: lilium");
+            let info = match info::RequestBuilder::new().request::<info::ArchInfo>().request::<info::OsVersion>().request::<info::KernelVendor>().opt_request::<info::ComputerName>().resolve(){
+                Ok(responses) => responses,
+                Err(LiliumError::InvalidOption | LiliumError::UnsupportedKernelFunction) => Err(io::Error::new(io::ErrorKind::Unsupported, "could not determine system name"))?,
+                Err(LiliumError::InsufficientLength | LiliumError::InvalidMemory) => panic!("Bad info `FromRequest` impl"),
+                Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("Unknown error from `GetSystemInfo`: {:?}", e)))?
+            };
+
+            let arch = info.get::<info::ArchInfo>();
+            let os_ver = info.get::<info::OsVersion>();
+            let kvendor = info.get::<info::KernelVendor>();
+            let cname = info.opt_get::<info::ComputerName>();
+
+            let arch = match arch.arch_id{
+                info::arch_info::ARCH_TYPE_X86_64 => format!("x86_64"),
+                info::arch_info::ARCH_TYPE_X86_IA_32 => format!("i{}86", arch.version),
+                info::arch_info::ARCH_TYPE_CLEVER_ISA => format!("clever"),
+                info::arch_info::ARCH_TYPE_ARM32 => format!("arm"),
+                info::arch_info::ARCH_TYPE_AARCH64 => format!("aarch64"),
+                info::arch_info::ARCH_TYPE_RISCV32 => format!("riscv32"),
+                info::arch_info::ARCH_TYPE_RISCV64 => format!("riscv64"),
+                id => format!("**unknown arch {}**", id)
+            };
+
+            let kernel = format!("Lilium");
+            let sys = os_ver.vendor;
+
+            let krelease = format!("{} {}.{}", kvendor.vendor, kvendor.major_version, kvendor.minor_version);
+
+            let kver = format!("{} {}.{}/{} (build id {})", os_ver.vendor, os_ver.major_version, os_ver.minor_version, kvendor.vendor, kvendor.build_id);
+
+            let hostname = match cname{
+                Some(cname) => cname.hostname,
+                None => "".to_string()
+            };
+
+            dbg!(Ok(Uname{
+                kernel,
+                sys,
+                krelease,
+                kver,
+                hostname,
+            }))
         }),
         _ => panic!("We don't know how to determine target system name. This is a bug if lccc has host support on this target")
     }

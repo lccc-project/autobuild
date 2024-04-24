@@ -17,6 +17,7 @@ use target_tuples::Target;
 use crate::hash::sha::Sha64State;
 use crate::hash::{self, FileHash};
 use crate::helpers::{which, FormatString};
+use crate::log::trace;
 use crate::map::OrderedMap;
 use crate::programs::rustc;
 use crate::rand::Rand;
@@ -526,6 +527,7 @@ pub struct Config {
 
 impl Config {
     pub fn new(cfg_dir: PathBuf, data: Box<ConfigData>) -> Self {
+        trace!(Config::new);
         Self {
             data,
             manifests: OrderedMap::new(),
@@ -543,6 +545,7 @@ impl Config {
     }
 
     pub fn open(cfg_dir: PathBuf) -> io::Result<Self> {
+        trace!(Config::open);
         let mut cfg_path = cfg_dir.clone();
         cfg_path.push(".config.toml");
         let mut file = File::open(cfg_path)?;
@@ -566,6 +569,7 @@ impl Config {
     }
 
     pub fn cleanup(mut self) -> io::Result<()> {
+        trace!(Config::clean);
         use io::Write;
 
         if self.dirty {
@@ -583,6 +587,7 @@ impl Config {
     }
 
     pub fn temp_file<S: AsRef<OsStr> + ?Sized>(&mut self, suffix: &S) -> io::Result<PathBuf> {
+        trace!(Config::temp_file);
         let tempdir = match &mut self.temp_dir {
             Some(dir) => &*dir,
             block @ None => {
@@ -616,6 +621,7 @@ impl Config {
     }
 
     fn check_up_to_date_with_hash(&mut self, file: String, key: FileHash) -> bool {
+        trace!(Config::check_up_to_date_with_hash);
         if let Some(cached) = self.data().file_cache.get(&file) {
             if key == *cached {
                 true
@@ -650,6 +656,7 @@ impl Config {
     // }
 
     pub fn find_program(&mut self, key: &str, prg_spec: &ProgramSpec) -> io::Result<()> {
+        trace!(Config::find_program);
         if !self.data().programs.contains_key(key) {
             // If we've set a variable containing the name of the program (including via env), try to search it
             let path = if let Some(ConfigVarValue::Value(val)) = self.data().config_vars.get(key) {
@@ -731,6 +738,7 @@ impl Config {
     }
 
     pub fn get_cache_var(&self, path: &Path, key: &str) -> ConfigVarValue {
+        trace!(Config::get_cache_var);
         if let Some(val) = self.data().config_vars.get(key) {
             val.clone()
         } else if let Some(val) = self
@@ -752,6 +760,7 @@ impl Config {
     }
 
     pub fn read_manifest(&mut self, src_dir: Option<PathBuf>) -> io::Result<()> {
+        trace!(Config::read_manifest);
         if let Some(src_dir) = src_dir {
             if self.manifests.contains_key(&src_dir) {
                 return Ok(());

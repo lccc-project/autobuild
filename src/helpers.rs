@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::log::{dbg, trace};
+
 pub trait SplitOnceOwned: Sized {
     fn split_once_take(&mut self, pat: &str) -> Option<Self>;
     fn split_once_owned(mut self, pat: &str) -> Result<(Self, Self), Self> {
@@ -230,6 +232,7 @@ impl serde::Serialize for FormatString {
 }
 
 pub fn which<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
+    trace!(which);
     let path = std::env::var_os("PATH")
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "PATH not set"))?;
 
@@ -253,6 +256,7 @@ pub fn which<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
 }
 
 pub fn which_tool<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
+    trace!(which_tool);
     let path = std::env::var_os("AUTOBUILD_TOOL_PATH");
 
     let mut autobuild = std::env::current_exe()?;

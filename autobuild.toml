@@ -1,1 +1,11 @@
 env = ["RUSTC_FOR_BUILD", "RUSTC"]
+
+[programs.RUSTC]
+type="rustc"
+names=["rustc", "lcrustc", "lccc", "gcc-rs"]
+target="{host}"
+
+[programs.RUSTC_FOR_BUILD]
+type="rustc"
+names=["rustc", "lcrustc", "lccc", "gcc-rs"]
+target="{build}"
