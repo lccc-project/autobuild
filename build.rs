@@ -32,4 +32,5 @@ fn main() {
 
     println!("cargo:rustc-env=VERSION={}", env);
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/targ/guess.data");
 }
