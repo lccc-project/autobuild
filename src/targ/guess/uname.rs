@@ -12,6 +12,8 @@ pub struct Uname {
     pub hostname: String,
 }
 
+const HOST_OS_NAME: Option<&str> = core::option_env!("HOST_OS_NAME");
+
 #[allow(unused_parens)] // cfg_match is a macro that exists
 pub fn uname() -> io::Result<Uname> {
     trace!(uname);
@@ -42,21 +44,8 @@ pub fn uname() -> io::Result<Uname> {
             let arch = CStr::from_bytes_until_nul(bytemuck::cast_slice(&name.machine)).expect("libc::uname should have inserted a NULL");
             let arch = arch.to_str().map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, format!("expected UTF-8 only in \"{:?}\"", arch))))?.to_string();
 
-            log!(LogLevel::Info, "uname -o");
-            let sys = if let Ok(cmd) = std::process::Command::new("uname").arg("-o").output(){
-                if cmd.status.success(){
-                    let st = String::from_utf8(cmd.stdout)
-                        .map_err(|_| dbg!(io::Error::new(io::ErrorKind::InvalidData, "expected UTF-8 only in os name")))?;
 
-                    Some(st.trim().to_string())
-                }else{
-                    None
-                }
-            }else{
-                None
-            };
-
-            dbg!(Ok(Uname { kernel, arch, sys, kver, krelease, hostname}))
+            dbg!(Ok(Uname { kernel, arch, sys: HOST_OS_NAME.map(ToString::to_string), kver, krelease, hostname}))
         }),
         windows => ({
             use windows_sys::Win32::System::{SystemInformation, WindowsProgramming};
@@ -80,7 +69,6 @@ pub fn uname() -> io::Result<Uname> {
             let mut os_ver_info = unsafe{core::mem::zeroed::<SystemInformation::OSVERSIONINFEXOW>()};
             os_ver_info.dwOSVersionInfoSize = core::mem::size_of::<SystemInformation::OSVERSIONINFEXOW>() as u32;
 
-            let sys = std::process::Command::new("uname").arg("-o").output();
 
             if unsafe{SystemInformation::GetOsVersionExW(&mut os_ver_info)} {
                 return Err(io::Error::new(io::Error::InvalidData, "Failed to run `GetOsVersionExW`"));
@@ -118,21 +106,10 @@ pub fn uname() -> io::Result<Uname> {
 
             let kver = format!("Microsoft {} {} {}", win_ver, sp, product_ty);
 
-            let sys = match sys{
-                Ok(sys) if sys.status.success() => {
-                    let sys = core::str::from_utf8(&sys.stdout)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                    .trim()
-                    .to_string();
-                    Some(sys)
-                }
-                _ => None
-            };
-
             dbg!(Ok(Uname{
                 kernel: format!("Windows NT"),
                 arch: std::env::var("PROCESSOR_ARCHITECTURE").map_err(|e| io::Error::new(io::ErrorKind::NotFound, e))?,
-                sys,
+                sys: HOST_OS_NAME.map(ToString::to_string),
                 krelease,
                 kver,
                 hostname,

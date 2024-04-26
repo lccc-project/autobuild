@@ -40,6 +40,13 @@ impl Rand {
                     );
                 }
             }),
+            target_os = "lilium" => ({
+                use lilium_sys::sys::random::{GetRandomBytes, RANDOM_DEVICE};
+                keys = [0, 0];
+
+                let err = unsafe{GetRandomBytes(keys.as_mut_ptr().cast(), 16, RANDOM_DEVICE)};
+                assert_eq!(err, 0);
+            })
             _ => compile_error!("unsupported platform due to inability to generate random number")
         }
 

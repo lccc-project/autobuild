@@ -1,0 +1,6 @@
+[book]
+authors = ["Connor Horman"]
+language = "en"
+multilingual = false
+src = "src"
+title = "LCCC Autobuild"
