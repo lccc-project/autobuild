@@ -1,7 +1,7 @@
 Linux, x86_64, "GNU/Linux" => x86_64-pc-linux-gnu;
 Linux, i686, "GNU/Linux" => i686-pc-linux-gnu;
 Linux, i586, "GNU/Linux" => i586-pc-linux-gnu;
-Linux, aarch64, "Android" => aarch64-unknown-linux-gnu;
+Linux, aarch64, "GNU/Linux" => aarch64-unknown-linux-gnu;
 Linux, x86_64, "Android" => x86_64-pc-linux-android;
 Linux, aarch64, "Android" => aarch64-unknown-linux-android;
 "Windows NT",AMD64 => x86_64-pc-windows-msvc;
