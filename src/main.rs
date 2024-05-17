@@ -13,6 +13,7 @@ mod os;
 mod programs;
 mod rand;
 mod serialize;
+mod set;
 mod targ;
 mod tools;
 

@@ -9,7 +9,7 @@ mod raw;
 use raw::OrderedMapImpl;
 
 pub use lccc_siphash::SipHasher;
-use serde::de::Visitor;
+use serde::de::{DeserializeSeed, Visitor};
 
 use crate::rand::Rand;
 
@@ -403,38 +403,8 @@ impl<
     where
         D: serde::Deserializer<'de>,
     {
-        struct MapVisitor<K, V, S>(PhantomData<(K, V, S)>);
-
-        impl<
-                'de,
-                K: serde::de::Deserialize<'de> + Hash + Eq,
-                V: serde::de::Deserialize<'de>,
-                S: BuildHasher + Default,
-            > Visitor<'de> for MapVisitor<K, V, S>
-        {
-            type Value = OrderedMap<K, V, S>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a map")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                let mut res = if let Some(expected) = map.size_hint() {
-                    OrderedMap::with_capacity_and_hasher(expected, S::default())
-                } else {
-                    OrderedMap::default()
-                };
-
-                while let Some((key, val)) = map.next_entry()? {
-                    res.insert(key, val);
-                }
-
-                Ok(res)
-            }
-        }
-
-        deserializer.deserialize_map(MapVisitor(PhantomData))
+        de::WithHasher::new(S::default()).deserialize(deserializer)
     }
 }
+
+pub mod de;

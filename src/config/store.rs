@@ -7,36 +7,7 @@ use crate::map::OrderedMap;
 
 use super::ConfigTargets;
 
-pub struct TargetVisitor;
-
-impl<'de> serde::de::Visitor<'de> for TargetVisitor {
-    type Value = Target;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a (potentially non-canonical) target, in the form <arch>-<vendor>-<sys> (with vendor potentially omitted)")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        v.parse()
-            .map_err(|_| E::invalid_value(Unexpected::Str(v), &self))
-    }
-}
-
-pub struct DeserializeTarget;
-
-impl<'de> serde::de::DeserializeSeed<'de> for DeserializeTarget {
-    type Value = Target;
-
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(TargetVisitor)
-    }
-}
+use crate::serialize::helpers::DeserializeTarget;
 
 impl<'de> serde::de::Deserialize<'de> for ConfigTargets {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

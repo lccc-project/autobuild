@@ -1,14 +1,25 @@
-use std::{collections::HashSet, ffi::OsStr, io, path::Path, process::Command, slice::Iter};
+use std::{
+    borrow::Cow,
+    ffi::{OsStr, OsString},
+    io,
+    path::{Path, PathBuf},
+    process::Command,
+    slice::Iter,
+};
 
 use serde_derive::{Deserialize, Serialize};
 
-use crate::config::Config;
+use crate::{config::Config, set::OrderedSet};
 
 use target_tuples::{Architecture, Target};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+use super::{CompileTask, Compiler};
+
+mod store;
+
+#[derive(Clone, Debug)]
 pub struct RustcTarget {
-    pub real_target: String,
+    pub real_target: Target,
     pub rustc_target: String,
     pub rlib_prefix: String,
     pub rlib_suffix: String,
@@ -30,10 +41,104 @@ pub enum RustcCli {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RustcVersion {
+    pub abs_path: PathBuf,
     pub cli: RustcCli,
     pub target: RustcTarget,
-    pub supported_editions: HashSet<RustEdition>,
-    pub features_available: HashSet<RustcFeature>,
+    pub supported_editions: OrderedSet<RustEdition>,
+    pub features_available: OrderedSet<RustcFeature>,
+}
+
+pub struct RustCompileTask<'a> {
+    compiler: &'a RustcVersion,
+    output: &'a Path,
+    crate_name: Cow<'a, str>,
+    compile_type: RustCompileType,
+    preprocess_flags: Vec<OsString>,
+    compile_flags: Vec<OsString>,
+    link_flags: Vec<OsString>,
+}
+
+impl<'a> CompileTask for RustCompileTask<'a> {
+    fn compiler(&self) -> &dyn Compiler {
+        todo!()
+    }
+
+    fn add_compile_lib(&mut self, lib: &Path) {
+        todo!()
+    }
+
+    fn add_link_lib(&mut self, lib: &dyn CompileTask) {
+        todo!()
+    }
+
+    fn add_preprocess_lib(&mut self, lib: &dyn CompileTask) {
+        todo!()
+    }
+
+    fn add_compile_flag(&mut self, flag: &OsStr) {
+        todo!()
+    }
+
+    fn add_link_flag(&mut self, flag: &OsStr) {
+        todo!()
+    }
+
+    fn add_preprocess_flag(&mut self, flag: &OsStr) {
+        todo!()
+    }
+
+    fn name(&self) -> &str {
+        todo!()
+    }
+
+    fn link_outputs(&self) -> Vec<&Path> {
+        todo!()
+    }
+
+    fn run_outputs(&self) -> Vec<&Path> {
+        todo!()
+    }
+
+    fn gather_deps(&self) -> std::io::Result<Vec<super::DepInfo>> {
+        todo!()
+    }
+
+    fn run_steps(
+        &mut self,
+        from: super::CompileTaskStep,
+        to: super::CompileTaskStep,
+    ) -> std::io::Result<Vec<super::DepInfo>> {
+        todo!()
+    }
+}
+
+pub enum RustCompileType {
+    Bin,
+    Cdylib,
+    Dylib,
+}
+
+impl Compiler for RustcVersion {
+    fn abs_path(&self) -> &Path {
+        &self.abs_path
+    }
+
+    fn default_flags(&self) -> &[&OsStr] {
+        todo!()
+    }
+
+    fn target(&self) -> &Target {
+        &self.target.real_target
+    }
+
+    fn create_compile_task<'a>(
+        &'a self,
+        output: &'a Path,
+        name: &'a str,
+        build_type: super::CompileTaskType,
+    ) -> Box<dyn super::CompileTask + 'a> {
+        todo!()
+    }
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Deserialize, Serialize)]
@@ -171,7 +276,7 @@ fn test_target_rustc<P: AsRef<OsStr>>(
             .unwrap();
 
         Ok(Some(RustcTarget {
-            real_target: core::mem::take(actual_target),
+            real_target: Target::parse(actual_target),
             rustc_target: try_target,
             rlib_prefix,
             rlib_suffix,
@@ -354,11 +459,12 @@ pub fn rustc_info<P: AsRef<OsStr>>(
                         Err(e) => Some(Err(e)),
                     },
                 )
-                .collect::<io::Result<HashSet<_>>>()?;
+                .collect::<io::Result<OrderedSet<_>>>()?;
 
-            let features_available = HashSet::new();
+            let features_available = OrderedSet::new();
 
             Ok(RustcVersion {
+                abs_path: PathBuf::from(rustc.as_ref().to_os_string()),
                 cli,
                 target,
                 supported_editions,

@@ -1,0 +1,12 @@
+{
+    "crates": [
+        {
+            "display_name": "autobuild-bootstrap",
+            "root_module": "bootstrap.rs",
+            "edition": "2021",
+            "is_proc_macro": false,
+            "cfg": [],
+            "deps": []
+        }
+    ]
+}

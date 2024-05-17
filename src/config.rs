@@ -211,6 +211,10 @@ pub struct Artifact {
     pub path: PathBuf,
     pub deps: Vec<PathBuf>,
     pub target: TargetName,
+    #[serde(default)]
+    pub aliases: Vec<PathBuf>,
+    #[serde(default)]
+    pub install_base: Option<FormatString>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SubdirInfo {}

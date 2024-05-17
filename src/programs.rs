@@ -59,3 +59,5 @@ pub trait CompileTask {
         to: CompileTaskStep,
     ) -> std::io::Result<Vec<DepInfo>>;
 }
+
+pub mod helpers;
