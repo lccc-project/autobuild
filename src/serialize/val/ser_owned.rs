@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::map::OrderedMap;
 
 use super::Table;

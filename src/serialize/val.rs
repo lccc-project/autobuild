@@ -94,7 +94,6 @@ impl<'de> Deserialize<'de> for Value {
             where
                 E: serde::de::Error,
             {
-                use core::convert::TryFrom;
                 if let Ok(val) = i64::try_from(v) {
                     self.visit_i64(val)
                 } else {
@@ -249,7 +248,6 @@ where
             where
                 E: serde::de::Error,
             {
-                use core::convert::TryFrom;
                 if let Ok(val) = i64::try_from(v) {
                     self.visit_i64(val)
                 } else {
