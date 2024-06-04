@@ -9,6 +9,12 @@ impl Rand {
         let mut keys;
 
         cfg_match::cfg_match! {
+            target_os = "macos" => ({
+                unsafe {
+                    keys = [0, 0];
+                    libc::getentropy(keys.as_mut_ptr().cast(), 16);
+                }
+            }),
             unix => ({
                 unsafe {
                     keys = [0, 0];
