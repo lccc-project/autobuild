@@ -6,6 +6,7 @@ mod consts;
 mod fs;
 mod hash;
 mod helpers;
+mod install;
 mod jobserv;
 mod log;
 mod map;

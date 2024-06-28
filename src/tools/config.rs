@@ -5,13 +5,13 @@ use std::io::{self, Read};
 
 use std::path::{Path, PathBuf};
 
-use install_dirs::dirs::InstallDirs;
 use target_tuples::Target;
 
 use crate::config::{
     Config, ConfigData, ConfigInstallDirs, ConfigProgramInfo, ConfigTargets, ConfigVarValue,
 };
 use crate::helpers::SplitOnceOwned;
+use crate::install::InstallDirs;
 use crate::map::OrderedMap;
 use crate::rand::Rand;
 
@@ -27,9 +27,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
     let mut config_vars = OrderedMap::new();
     let mut extra_install_dirs = OrderedMap::new();
 
-    let mut prefix_set = false;
-
-    let mut install_dirs = InstallDirs::defaults();
+    let mut install_dirs = InstallDirs::default();
     let mut install_dirs_dirty = false;
 
     let mut build_alias = None;
@@ -39,7 +37,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
     install_dirs.read_env();
 
     while let Some(mut arg) = args.next() {
-        let mut explicit_arg = arg.split_once_take("=");
+        let explicit_arg = arg.split_once_take("=");
         match &*arg {
             "--help" => {
                 if let Some(explicit_arg) = explicit_arg {
@@ -93,14 +91,6 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 let val = super::require_arg(Some("--config-dir"), &mut args, explicit_arg)?;
 
                 cfg_dir = Some(PathBuf::from(val));
-            }
-
-            "--prefix" => {
-                let val = super::require_arg(Some("--prefix"), &mut args, explicit_arg)?;
-
-                install_dirs.prefix = PathBuf::from(val);
-
-                prefix_set = true
             }
             "--build" => {
                 let val = super::require_arg(Some("--build"), &mut args, explicit_arg)?;
@@ -172,7 +162,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
         Ok(mut config) => {
             if install_dirs_dirty {
                 let data = config.data_mut();
-                data.dirs.install_dirs = install_dirs;
+                data.dirs.install_dirs.set_from(&install_dirs);
             }
 
             for (key, dir) in extra_install_dirs {

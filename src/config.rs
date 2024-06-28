@@ -8,7 +8,6 @@ use std::{path::PathBuf, str::FromStr};
 
 use io::Read as _;
 
-use install_dirs::dirs::InstallDirs;
 use serde::de::Visitor;
 use serde_derive::{Deserialize, Serialize};
 
@@ -17,6 +16,7 @@ use target_tuples::Target;
 use crate::hash::sha::Sha64State;
 use crate::hash::{self, FileHash};
 use crate::helpers::{which, FormatString};
+use crate::install::InstallDirs;
 use crate::log::trace;
 use crate::map::OrderedMap;
 use crate::programs::rustc;

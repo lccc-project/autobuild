@@ -49,6 +49,7 @@ def_tools! {
     tool which;
     tool guess;
     tool uname;
+    tool install;
 }
 
 pub fn print_version() {

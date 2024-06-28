@@ -11,13 +11,13 @@ default-run="autobuild"
 serde = "1"
 serde_derive = "1"
 toml = "0.8.8"
-install-dirs= { version = "0.3.2", features = ["serde"] }
 target-tuples = "0.5.12"
 lccc-siphash = "0.1.0"
 cfg-match = "0.2.1"
 with_builtin_macros = "0.0.3"
 hashbrown = { version = "0.14.3", default-features = false, features=["inline-more", "raw"] }
 bytemuck = {version = "1.15.0", features=["min_const_generics"]}
+dirs = "5.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.152"
