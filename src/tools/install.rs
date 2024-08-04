@@ -18,6 +18,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
     let mut install_command = None;
     let mut strip_command = None;
     let mut strip_debug = false;
+    let mut targets = Vec::new();
 
     while let Some(mut arg) = args.next() {
         let explicit = arg.split_once_take("=");
@@ -82,9 +83,32 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                 }
                 dry_run = true;
             }
-            _ => todo!(),
+            "--config-dir" => {
+                config_dir = PathBuf::from(super::require_arg(
+                    Some("--config-dir"),
+                    &mut args,
+                    explicit,
+                )?);
+            }
+            "--" => break,
+            x if x.starts_with("--") => {
+                install_dirs
+                    .set_from_arg(x, super::require_arg(Some(x), &mut args, explicit)?)
+                    .map_err(|_| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!("Option {} not recognized", x),
+                        )
+                    });
+            }
+            _ => {
+                targets.push(arg);
+                break;
+            }
         }
     }
+
+    targets.extend(args);
 
     Ok(())
 }
