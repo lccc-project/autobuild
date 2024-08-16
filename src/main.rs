@@ -17,6 +17,7 @@ mod serialize;
 mod set;
 mod targ;
 mod tools;
+mod cmd;
 
 fn main() {
     let log_level = if let Ok(mut arg) = std::env::var("AUTOBUILD_LOG") {

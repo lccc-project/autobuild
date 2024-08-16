@@ -11,9 +11,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
 
     let rustc = PathBuf::from(delegate);
 
-    let mut gen = Rand::init();
-
-    let name = PathBuf::from(format!(".{:016x}.rs", gen.gen()));
+    
 
     todo!()
 }

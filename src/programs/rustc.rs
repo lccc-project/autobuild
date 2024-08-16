@@ -3,7 +3,7 @@ use std::{
     ffi::{OsStr, OsString},
     io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     slice::Iter,
 };
 
@@ -201,7 +201,6 @@ pub enum RustcFeature {
 
 fn test_target_rustc<P: AsRef<OsStr>>(
     rustc: &P,
-    tempfile: &Path,
     actual_target: &mut String,
     try_target: String,
 ) -> io::Result<Option<RustcTarget>> {
@@ -217,7 +216,8 @@ fn test_target_rustc<P: AsRef<OsStr>>(
             .arg("rlib,dylib,staticlib,cdylib,bin")
             .arg("--print")
             .arg("file-names")
-            .arg(tempfile)
+            .arg("-")
+            .stdin(Stdio::null())
             .output()?
     } else {
         Command::new(rustc)
@@ -229,7 +229,8 @@ fn test_target_rustc<P: AsRef<OsStr>>(
             .arg("rlib,dylib,staticlib,cdylib,bin")
             .arg("--print")
             .arg("file-names")
-            .arg(tempfile)
+            .arg("-")
+            .stdin(Stdio::null())
             .output()?
     };
 
@@ -294,29 +295,28 @@ fn test_target_rustc<P: AsRef<OsStr>>(
     }
 }
 
-fn test_rustc_cli<P: AsRef<OsStr>>(_: &P, _: &Path) -> io::Result<RustcCli> {
+fn test_rustc_cli<P: AsRef<OsStr>>(_: &P) -> io::Result<RustcCli> {
     // Assume it's rustc for now, figure out a heuristic for gcc later
     Ok(RustcCli::Rustc)
 }
 
 pub fn rustc_detect_target<P: AsRef<OsStr>>(
-    temp_file: &Path,
     rustc: &P,
     mut target: String,
 ) -> io::Result<RustcTarget> {
     let try_target = target.clone();
 
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
     let parsed = Target::parse(&target);
     let try_target = parsed.to_string();
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
 
     let try_target = format!("{}-{}", parsed.arch_name(), parsed.sys());
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
     let try_target = {
@@ -340,12 +340,12 @@ pub fn rustc_detect_target<P: AsRef<OsStr>>(
         }
         st
     };
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
 
     let try_target = format!("{}-unknown-{}", parsed.arch_name(), parsed.sys());
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
     let try_target = {
@@ -370,13 +370,13 @@ pub fn rustc_detect_target<P: AsRef<OsStr>>(
         st
     };
 
-    if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+    if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
         return Ok(targ);
     }
 
     if parsed.arch().is_x86() || parsed.arch() == Architecture::X86_64 {
         let try_target = format!("{}-pc-{}", parsed.arch_name(), parsed.sys());
-        if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+        if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
             return Ok(targ);
         }
         let try_target = {
@@ -401,7 +401,7 @@ pub fn rustc_detect_target<P: AsRef<OsStr>>(
             st
         };
 
-        if let Some(targ) = test_target_rustc(rustc, temp_file, &mut target, try_target)? {
+        if let Some(targ) = test_target_rustc(rustc, &mut target, try_target)? {
             return Ok(targ);
         }
     }
@@ -419,7 +419,6 @@ pub fn rustc_detect_target<P: AsRef<OsStr>>(
 }
 
 fn rustc_test_edition<P: AsRef<OsStr>>(
-    temp_file: &Path,
     rustc: &P,
     edition: RustEdition,
 ) -> io::Result<bool> {
@@ -434,26 +433,26 @@ fn rustc_test_edition<P: AsRef<OsStr>>(
             "--edition",
             edition.rustc_edition_year(),
         ])
-        .arg(temp_file)
+        .arg("-")
+        .stdin(Stdio::null())
         .output()?;
 
     Ok(output.status.success())
 }
 
 pub fn rustc_info<P: AsRef<OsStr>>(
-    temp_file: &Path,
     rustc: &P,
     target: String,
 ) -> io::Result<RustcVersion> {
-    let cli = test_rustc_cli(rustc, &temp_file)?;
+    let cli = test_rustc_cli(rustc)?;
 
     match cli {
         RustcCli::Rustc => {
-            let target = rustc_detect_target(temp_file, rustc, target)?;
+            let target = rustc_detect_target(rustc, target)?;
 
             let supported_editions = RustEdition::all()
                 .filter_map(
-                    |edition| match rustc_test_edition(temp_file, rustc, edition) {
+                    |edition| match rustc_test_edition(rustc, edition) {
                         Ok(true) => Some(Ok(edition)),
                         Ok(false) => None,
                         Err(e) => Some(Err(e)),
@@ -480,6 +479,5 @@ pub fn info<P: AsRef<OsStr>>(
     rustc: &P,
     target: String,
 ) -> io::Result<RustcVersion> {
-    let tempfile = cfg.temp_file("rs")?;
-    rustc_info(&tempfile, rustc, target)
+    rustc_info(rustc, target)
 }
