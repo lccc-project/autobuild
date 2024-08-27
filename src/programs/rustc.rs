@@ -418,10 +418,7 @@ pub fn rustc_detect_target<P: AsRef<OsStr>>(
     ))
 }
 
-fn rustc_test_edition<P: AsRef<OsStr>>(
-    rustc: &P,
-    edition: RustEdition,
-) -> io::Result<bool> {
+fn rustc_test_edition<P: AsRef<OsStr>>(rustc: &P, edition: RustEdition) -> io::Result<bool> {
     let output = Command::new(rustc)
         .args([
             "--crate-name",
@@ -440,10 +437,7 @@ fn rustc_test_edition<P: AsRef<OsStr>>(
     Ok(output.status.success())
 }
 
-pub fn rustc_info<P: AsRef<OsStr>>(
-    rustc: &P,
-    target: String,
-) -> io::Result<RustcVersion> {
+pub fn rustc_info<P: AsRef<OsStr>>(rustc: &P, target: String) -> io::Result<RustcVersion> {
     let cli = test_rustc_cli(rustc)?;
 
     match cli {
@@ -451,13 +445,11 @@ pub fn rustc_info<P: AsRef<OsStr>>(
             let target = rustc_detect_target(rustc, target)?;
 
             let supported_editions = RustEdition::all()
-                .filter_map(
-                    |edition| match rustc_test_edition(rustc, edition) {
-                        Ok(true) => Some(Ok(edition)),
-                        Ok(false) => None,
-                        Err(e) => Some(Err(e)),
-                    },
-                )
+                .filter_map(|edition| match rustc_test_edition(rustc, edition) {
+                    Ok(true) => Some(Ok(edition)),
+                    Ok(false) => None,
+                    Err(e) => Some(Err(e)),
+                })
                 .collect::<io::Result<OrderedSet<_>>>()?;
 
             let features_available = OrderedSet::new();
