@@ -28,6 +28,7 @@ pub struct InstallDirs {
     pub sysconfdir: Option<PathBuf>,
 }
 
+#[allow(dead_code)]
 impl InstallDirs {
     pub const fn new() -> Self {
         Self {

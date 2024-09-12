@@ -5,10 +5,7 @@ use std::io;
 
 use super::{ConfigFoundProgram, ConfigVarValue};
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 
 pub mod default;
 

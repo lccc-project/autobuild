@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::env::VarError;
@@ -834,7 +836,7 @@ impl Config {
                         self.read_manifest(Some(subdir_path))?;
                         BuildTargetStep::Subdir(SubdirInfo {})
                     }
-                    StepSpec::Build(build) => todo!(),
+                    StepSpec::Build(_) => todo!(),
                     StepSpec::Script(_) => todo!(),
                 };
                 if src_file_dirty {

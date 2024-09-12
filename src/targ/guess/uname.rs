@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::log::{dbg, log, log_debug, trace, LogLevel};
+use crate::log::{dbg, log_debug, trace, LogLevel};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Uname {
@@ -14,7 +14,7 @@ pub struct Uname {
 
 const HOST_OS_NAME: Option<&str> = core::option_env!("HOST_OS_NAME");
 
-#[allow(unused_parens, unexpected_cfgs)] // cfg_match is a macro that exists
+#[allow(unused_parens)] // cfg_match is a macro that exists
 pub fn uname() -> io::Result<Uname> {
     trace!(uname);
     cfg_match::cfg_match! {

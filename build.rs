@@ -24,6 +24,7 @@ fn gen_os_string() -> Option<&'static str> {
 }
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(target_os, values(\"lilium\"))");
     let env = std::env::var("CARGO_PKG_VERSION").unwrap();
 
     if let Some(st) = gen_os_string() {

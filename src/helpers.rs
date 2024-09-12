@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::log::{dbg, trace};
+use crate::log::trace;
 
 pub trait SplitOnceOwned: Sized {
     fn split_once_take(&mut self, pat: &str) -> Option<Self>;
@@ -255,6 +255,7 @@ pub fn which<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
     ))
 }
 
+#[allow(dead_code)]
 pub fn which_tool<S: AsRef<Path> + ?Sized>(prg: &S) -> io::Result<PathBuf> {
     trace!(which_tool);
     let path = std::env::var_os("AUTOBUILD_TOOL_PATH");

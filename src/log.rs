@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     panic::Location,
     sync::atomic::{AtomicUsize, Ordering},
@@ -158,12 +160,14 @@ pub fn __log_debug_print(level: LogLevel, f: core::fmt::Arguments, loc: &Locatio
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! log{
     ($level:expr, $($fmt:tt)*) => {
         $crate::log::__log_print($level, ::core::format_args!($($fmt)*))
     };
 }
 
+#[allow(unused_imports)]
 pub(crate) use log;
 
 macro_rules! log_debug{

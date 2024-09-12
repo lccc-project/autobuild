@@ -14,7 +14,7 @@ enum PrintType {
 
 fn help() {}
 
-pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
+pub fn main(prg_name: &str, args: Args) -> io::Result<()> {
     let uname = uname()?;
 
     let mut print_types = HashSet::new();

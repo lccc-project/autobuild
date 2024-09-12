@@ -1,7 +1,6 @@
 use core::borrow::Borrow;
 use core::hash::{BuildHasher, Hash, Hasher};
 use core::iter::{Extend, FromIterator, FusedIterator};
-use std::marker::PhantomData;
 use std::ops::Index;
 
 mod raw;
@@ -9,7 +8,7 @@ mod raw;
 use raw::OrderedMapImpl;
 
 pub use lccc_siphash::SipHasher;
-use serde::de::{DeserializeSeed, Visitor};
+use serde::de::DeserializeSeed;
 
 use crate::rand::Rand;
 
@@ -283,7 +282,7 @@ impl<'a, 'b, K: Hash + Eq + Clone, V: Clone, S: Default + BuildHasher> FromItera
 
 impl<K: Hash + Eq, V, S: BuildHasher> Extend<(K, V)> for OrderedMap<K, V, S> {
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        let mut iter = iter.into_iter();
+        let iter = iter.into_iter();
         self.reserve(iter.size_hint().0);
 
         for (k, v) in iter {
@@ -296,7 +295,7 @@ impl<'a, 'b, K: Hash + Eq + Clone, V: Clone, S: BuildHasher> Extend<(&'a K, &'b 
     for OrderedMap<K, V, S>
 {
     fn extend<T: IntoIterator<Item = (&'a K, &'b V)>>(&mut self, iter: T) {
-        let mut iter = iter.into_iter();
+        let iter = iter.into_iter();
         self.reserve(iter.size_hint().0);
 
         for (k, v) in iter {

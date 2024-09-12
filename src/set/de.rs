@@ -1,4 +1,4 @@
-use serde::de::{DeserializeSeed, Error, SeqAccess, Visitor};
+use serde::de::{DeserializeSeed, SeqAccess, Visitor};
 
 use core::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
@@ -13,6 +13,7 @@ impl<E, S> WithHasher<PhantomData<E>, S> {
 }
 
 impl<E, S> WithHasher<E, S> {
+    #[allow(dead_code)]
     pub const fn new_seeded(elem_seed: E, hasher: S) -> Self {
         Self(elem_seed, hasher)
     }

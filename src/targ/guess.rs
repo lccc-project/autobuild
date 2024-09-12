@@ -1,6 +1,6 @@
 use target_tuples::Target;
 
-use crate::log::{dbg, log, log_debug, trace, LogLevel};
+use crate::log::{dbg, trace};
 
 pub mod uname;
 

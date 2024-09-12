@@ -14,7 +14,7 @@ pub struct PipePair {
 
 impl PipePair {
     #[cfg(unix)]
-    pub fn new(mut token_count: usize) -> io::Result<Self> {
+    pub fn new(token_count: usize) -> io::Result<Self> {
         use std::os::fd::FromRawFd;
 
         let mut fds = [0; 2];

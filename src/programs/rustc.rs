@@ -48,6 +48,7 @@ pub struct RustcVersion {
     pub features_available: OrderedSet<RustcFeature>,
 }
 
+#[allow(dead_code)]
 pub struct RustCompileTask<'a> {
     compiler: &'a RustcVersion,
     output: &'a Path,
@@ -63,27 +64,27 @@ impl<'a> CompileTask for RustCompileTask<'a> {
         todo!()
     }
 
-    fn add_compile_lib(&mut self, lib: &Path) {
+    fn add_compile_lib(&mut self, _lib: &Path) {
         todo!()
     }
 
-    fn add_link_lib(&mut self, lib: &dyn CompileTask) {
+    fn add_link_lib(&mut self, _lib: &dyn CompileTask) {
         todo!()
     }
 
-    fn add_preprocess_lib(&mut self, lib: &dyn CompileTask) {
+    fn add_preprocess_lib(&mut self, _lib: &dyn CompileTask) {
         todo!()
     }
 
-    fn add_compile_flag(&mut self, flag: &OsStr) {
+    fn add_compile_flag(&mut self, _flag: &OsStr) {
         todo!()
     }
 
-    fn add_link_flag(&mut self, flag: &OsStr) {
+    fn add_link_flag(&mut self, _flag: &OsStr) {
         todo!()
     }
 
-    fn add_preprocess_flag(&mut self, flag: &OsStr) {
+    fn add_preprocess_flag(&mut self, _flag: &OsStr) {
         todo!()
     }
 
@@ -105,13 +106,14 @@ impl<'a> CompileTask for RustCompileTask<'a> {
 
     fn run_steps(
         &mut self,
-        from: super::CompileTaskStep,
-        to: super::CompileTaskStep,
+        _from: super::CompileTaskStep,
+        _to: super::CompileTaskStep,
     ) -> std::io::Result<Vec<super::DepInfo>> {
         todo!()
     }
 }
 
+#[allow(dead_code)]
 pub enum RustCompileType {
     Bin,
     Cdylib,
@@ -133,9 +135,9 @@ impl Compiler for RustcVersion {
 
     fn create_compile_task<'a>(
         &'a self,
-        output: &'a Path,
-        name: &'a str,
-        build_type: super::CompileTaskType,
+        _output: &'a Path,
+        _name: &'a str,
+        _build_type: super::CompileTaskType,
     ) -> Box<dyn super::CompileTask + 'a> {
         todo!()
     }
@@ -467,7 +469,7 @@ pub fn rustc_info<P: AsRef<OsStr>>(rustc: &P, target: String) -> io::Result<Rust
 }
 
 pub fn info<P: AsRef<OsStr>>(
-    cfg: &mut Config,
+    _: &mut Config,
     rustc: &P,
     target: String,
 ) -> io::Result<RustcVersion> {

@@ -136,10 +136,6 @@ impl<K, V> OrderedMapImpl<K, V> {
         self.inner.capacity().min(self.map.capacity())
     }
 
-    pub fn buckets(&self) -> usize {
-        self.inner.buckets()
-    }
-
     pub fn len(&self) -> usize {
         self.map.len()
     }

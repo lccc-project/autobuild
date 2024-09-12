@@ -1,6 +1,5 @@
 use crate::map::OrderedMap;
 
-use super::Table;
 use super::Value;
 
 use serde::de::Error;
@@ -194,8 +193,8 @@ impl ser::Serializer for SerializeString {
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
         Ok(variant.to_string())
@@ -203,7 +202,7 @@ impl ser::Serializer for SerializeString {
 
     fn serialize_newtype_struct<T: ?Sized>(
         self,
-        name: &'static str,
+        _name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
@@ -214,42 +213,39 @@ impl ser::Serializer for SerializeString {
 
     fn serialize_newtype_variant<T: ?Sized>(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        value: &T,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ser::Serialize,
     {
-        Err(ValueError::invalid_type(
-            Unexpected::NewtypeVariant,
-            &"a string",
-        ))
-    }
-
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         Err(ValueError::invalid_type(Unexpected::Seq, &"a string"))
     }
 
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err(ValueError::invalid_type(Unexpected::Seq, &"a string"))
+    }
+
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
         Err(ValueError::invalid_type(Unexpected::Seq, &"a string"))
     }
 
     fn serialize_tuple_struct(
         self,
-        name: &'static str,
-        len: usize,
+        _name: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
         Err(ValueError::invalid_type(Unexpected::Seq, &"a string"))
     }
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         Err(ValueError::invalid_type(
             Unexpected::TupleVariant,
@@ -257,14 +253,14 @@ impl ser::Serializer for SerializeString {
         ))
     }
 
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
         Err(ValueError::invalid_type(Unexpected::Unit, &"a string"))
     }
 
     fn serialize_struct(
         self,
-        name: &'static str,
-        len: usize,
+        _name: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
         Err(ValueError::invalid_type(
             Unexpected::Other("struct"),
@@ -274,10 +270,10 @@ impl ser::Serializer for SerializeString {
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Err(ValueError::invalid_type(
             Unexpected::Other("struct variant"),
@@ -389,7 +385,6 @@ impl ser::SerializeTupleVariant for SerializeVariant<SerializeSeq> {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        use ser::SerializeStruct as _;
         let val = self.1.end()?;
 
         Ok(Value::Table(core::iter::once((self.0, val)).collect()))

@@ -6,6 +6,7 @@ pub struct Sha64State {
     processed_bytes: u128,
 }
 
+#[allow(dead_code)]
 impl Sha64State {
     pub const SHA512: Sha64State = Sha64State::with_init([
         0x6a09e667f3bcc908,
@@ -143,7 +144,7 @@ impl Sha64State {
             0x6c44198c4a475817,
         ];
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = self.state;
-
+        #[allow(non_snake_case)] // Using the names from the algorithm
         for i in 0..80 {
             let S0 = (a.rotate_right(28)) ^ (a.rotate_right(34)) ^ (a.rotate_right(39));
             let S1 = (e.rotate_right(14)) ^ (e.rotate_right(18)) ^ (e.rotate_right(41));

@@ -1,15 +1,9 @@
-use std::collections::HashMap;
 use std::env::Args;
-use std::fs::File;
-use std::io::{self, Read};
+use std::io;
 
 use std::path::{Path, PathBuf};
 
-use target_tuples::Target;
-
-use crate::config::{
-    Config, ConfigData, ConfigInstallDirs, ConfigProgramInfo, ConfigTargets, ConfigVarValue,
-};
+use crate::config::{Config, ConfigData, ConfigInstallDirs, ConfigTargets, ConfigVarValue};
 use crate::helpers::SplitOnceOwned;
 use crate::install::InstallDirs;
 use crate::map::OrderedMap;

@@ -43,13 +43,13 @@ impl<'a> BuildScriptTask for BuildScriptTaskDefault<'a> {
     }
 
     fn set_target(&mut self, targ: &str, target: &target_tuples::Target) {
-        let mut var_name = targ.to_ascii_uppercase();
+        let var_name = targ.to_ascii_uppercase();
         if !var_name.starts_with("AUTOBUILD") {
             self.env.insert(var_name, OsString::from(target.get_name()));
         }
     }
 
-    fn set_var(&mut self, var_name: &str, value: &str, kind: super::VarKind) {
+    fn set_var(&mut self, var_name: &str, value: &str, _kind: super::VarKind) {
         if !var_name.starts_with("AUTOBUILD") {
             self.env
                 .entry(var_name.to_string())

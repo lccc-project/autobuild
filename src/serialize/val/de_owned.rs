@@ -1,7 +1,4 @@
-use std::{
-    iter::{self, Map},
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 use serde::{
     de::{
@@ -9,12 +6,12 @@ use serde::{
         DeserializeSeed, EnumAccess, Error, IntoDeserializer, MapAccess, SeqAccess, Unexpected,
         VariantAccess,
     },
-    forward_to_deserialize_any, Deserializer, Serializer,
+    forward_to_deserialize_any, Deserializer,
 };
 
 use crate::map::{self, OrderedMap};
 
-use super::{BorrowedVal, Table, Value};
+use super::Value;
 
 pub use serde::de::value::Error as ValueError;
 
@@ -98,7 +95,7 @@ impl<'de> Deserializer<'de> for UnitVariantAccess {
 impl<'de> SeqAccess<'de> for UnitVariantAccess {
     type Error = ValueError;
 
-    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    fn next_element_seed<T>(&mut self, _seed: T) -> Result<Option<T::Value>, Self::Error>
     where
         T: DeserializeSeed<'de>,
     {
@@ -274,7 +271,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        let mut val = self
+        let val = self
             .1
             .take()
             .expect("next_key must be called before next_value, or use next_entry instead");
@@ -325,8 +322,8 @@ impl<'de> Deserializer<'de> for MapDeserializer {
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
+        _name: &'static str,
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -337,8 +334,8 @@ impl<'de> Deserializer<'de> for MapDeserializer {
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
-        variants: &'static [&'static str],
+        _name: &'static str,
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -358,7 +355,7 @@ impl<'de> Deserializer<'de> for MapDeserializer {
 
     fn deserialize_unit_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -404,7 +401,7 @@ impl<'de> Deserializer<'de> for Value {
         match self {
             Value::Table(table) => MapDeserializer::new(table).deserialize_any(visitor),
             Value::List(list) => {
-                let mut list_access = SeqDeserializer::new(list.into_iter());
+                let list_access = SeqDeserializer::new(list.into_iter());
 
                 list_access.deserialize_any(visitor)
             }
@@ -643,10 +640,7 @@ impl<'de> Deserializer<'de> for Value {
     {
         match self {
             Value::Null => visitor.visit_unit(),
-            Value::Table(tab) => {
-                let mut map = MapDeserializer::new(tab);
-                visitor.visit_unit()
-            }
+            Value::Table(_) => visitor.visit_unit(),
             val => Err(ValueError::invalid_type(val_as_unexpected(&val), &visitor)),
         }
     }
@@ -662,7 +656,7 @@ impl<'de> Deserializer<'de> for Value {
         match self {
             Value::Null => visitor.visit_unit(),
             Value::Table(tab) => {
-                let mut map = MapDeserializer::new(tab);
+                let map = MapDeserializer::new(tab);
                 map.end()?;
                 visitor.visit_unit()
             }
@@ -679,7 +673,7 @@ impl<'de> Deserializer<'de> for Value {
 
     fn deserialize_newtype_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -735,8 +729,8 @@ impl<'de> Deserializer<'de> for Value {
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
+        _name: &'static str,
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where

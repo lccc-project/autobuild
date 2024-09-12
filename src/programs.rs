@@ -1,5 +1,4 @@
 use std::{
-    any::{Any, TypeId},
     ffi::OsStr,
     path::{Path, PathBuf},
 };
@@ -23,12 +22,14 @@ pub struct DepInfo {
     pub hash: FileHash,
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum CompileTaskStep {
     Compile,
     Link,
 }
 
+#[allow(dead_code)]
 pub trait Compiler {
     fn abs_path(&self) -> &Path;
     fn default_flags(&self) -> &[&OsStr];
@@ -41,6 +42,7 @@ pub trait Compiler {
     ) -> Box<dyn CompileTask + 'a>;
 }
 
+#[allow(dead_code)]
 pub trait CompileTask {
     fn compiler(&self) -> &dyn Compiler;
     fn add_compile_lib(&mut self, lib: &Path);

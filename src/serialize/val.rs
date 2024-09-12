@@ -1,8 +1,4 @@
-use std::{
-    borrow::Cow,
-    hash::{BuildHasher, Hash, Hasher},
-    marker::PhantomData,
-};
+use std::{borrow::Cow, marker::PhantomData};
 
 use serde::{
     de::value::{MapAccessDeserializer, SeqAccessDeserializer},
@@ -149,6 +145,7 @@ pub enum BorrowedVal<'a> {
 }
 
 impl<'a> BorrowedVal<'a> {
+    #[allow(dead_code)]
     pub fn to_owned(&self) -> Value {
         match self {
             BorrowedVal::Table(val) => Value::Table(

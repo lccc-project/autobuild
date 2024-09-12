@@ -7,8 +7,7 @@ use crate::map::OrderedMap;
 
 use crate::helpers::SplitOnceOwned;
 
-fn print_help() {}
-
+#[allow(unused_variables, unused_assignments)]
 pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
     let mut config_dir = PathBuf::new();
     let mut install_dirs = InstallDirs::default();
@@ -99,7 +98,7 @@ pub fn main(prg_name: &str, mut args: Args) -> io::Result<()> {
                             io::ErrorKind::InvalidInput,
                             format!("Option {} not recognized", x),
                         )
-                    });
+                    })?;
             }
             _ => {
                 targets.push(arg);

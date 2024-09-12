@@ -1,4 +1,4 @@
-use serde::de::{Deserialize, DeserializeSeed, Error, MapAccess, SeqAccess, Visitor};
+use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 
 use core::marker::PhantomData;
 use std::hash::{BuildHasher, Hash};
@@ -28,6 +28,7 @@ impl<K, V, S> WithHasher<PhantomData<K>, PhantomData<V>, S> {
     }
 }
 
+#[allow(dead_code)]
 impl<K, V, S> WithHasher<K, V, S> {
     pub const fn new_seeded(key_seed: K, val_seed: V, hasher: S) -> Self {
         Self(key_seed, val_seed, hasher)
