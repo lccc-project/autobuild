@@ -162,6 +162,6 @@ pub fn uname() -> io::Result<Uname> {
                 hostname,
             }))
         }),
-        _ => panic!("We don't know how to determine target system name. This is a bug if lccc has host support on this target")
+        _ => compile_error!("We don't know how to determine target system name. This is a bug if lccc has host support on this target")
     }
 }
