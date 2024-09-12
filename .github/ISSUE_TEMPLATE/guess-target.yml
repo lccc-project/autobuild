@@ -1,0 +1,29 @@
+name: Guess Target
+description: Add uname configuration for `autobuild guess`
+title: "[guess]: "
+labels: ["A-guess"]
+body:
+  - type: input
+    attributes:
+      label: "`uname` kernel"
+      description: The kernel name (obtained by running `autobuild uname -k`)
+    validations:
+      required: true
+  - type: input
+    attributes: 
+      label: "`uname` machine" 
+      description: The machine name (obtained by running `autobuild uname -m`)
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: "`uname` operating system"
+      description: The Operating System Name (obtained by running `autobuild uname -o`). Omit if not provided
+    validations:
+      required: false
+  - type: input
+    attributes: 
+      label: "Target Tuple (if known)"
+      description: The target tuple (GCC/LCCC Style) that should be returned by `autobuild guess` on this target. Omit if not known
+    validations:
+      required: false
